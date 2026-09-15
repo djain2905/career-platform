@@ -259,7 +259,14 @@ The system should support tags and cross-linking for future classification and f
 - Semantic HTML and clear visual hierarchy should be used.
 - Contrast and readability should meet modern accessibility standards.
 
-### 9.4 SEO
+### 9.4 Resilience and graceful degradation
+- The public profile must remain visible even when the primary database is unavailable.
+- The system should support a degraded-read mode in which a cached or last-known-good snapshot of profile content is served to public visitors.
+- The site should clearly distinguish between live content and fallback content, without exposing internal system errors to end users.
+- Database outages must not result in a blank or broken public site; a minimal but complete version of the profile should remain available.
+- Administrative editing may be temporarily unavailable during outages, but public visibility should take priority over admin features.
+
+### 9.5 SEO
 - Each public page should have proper title and meta description.
 - Structured content should be crawlable and semantically meaningful.
 - Open Graph metadata should be supported for social sharing.
