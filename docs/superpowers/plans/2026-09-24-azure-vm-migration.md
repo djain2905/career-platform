@@ -13,13 +13,17 @@
 ## Global Constraints
 
 - **SSH identity:** always `-i ~/.ssh/isba4775_azure`, user `azureuser`, host `4.155.216.147`. Never use a different key or user.
-- **VM:** `vm-career-platform` in resource group `rg-career-platform`.
+- **VM:** `vm-career-platform` in resource group `rg-career-platform` — Ubuntu 24.04.4 LTS, `Standard_B2ts_v2`, region `westus2`. Verified 2026-09-29.
+- **Azure account:** the VM lives in the *personal* subscription `0c172be1-8e92-46b5-b003-59e42c8deaef` (tenant `Default Directory`, `dhwanijain2905@gmail.com`) — **not** the LMU subscription (`50be258e-…`, `djain2@lion.lmu.edu`), which is empty. If `az` reports `ResourceGroupNotFound`, the CLI is pointed at the wrong account: `az account set --subscription 0c172be1-8e92-46b5-b003-59e42c8deaef`.
+- **Public IP:** `4.155.216.147`, **Static** SKU — it survives deallocation, so this address stays valid when the VM is stopped and restarted.
+- **NSG:** `vm-career-platform-nsg`. Existing rule `Allow-SSH-Laptop` (port 22, priority 300) is pinned to the laptop's public IP, which is dynamic on campus wifi and **must be re-pointed whenever it drifts**.
+- **VM power state:** the VM is deallocated between sessions to stop compute billing. Start with `az vm start -g rg-career-platform -n vm-career-platform`; stop with `az vm deallocate …`. SSH fails against a deallocated VM in a way that looks identical to a bad NSG rule — check power state first.
 - **Repo:** `https://github.com/djain2905/career-platform.git`, branch `main`.
 - **App root on VM:** `/home/azureuser/career-platform`.
 - **Python version:** 3.13 on both laptop and VM (pinned via `.python-version`; `uv` provisions it).
 - **Dependency versions are frozen** at the values already in `requirements.txt`: `fastapi==0.115.0`, `uvicorn[standard]==0.30.6`, `jinja2==3.1.4`, `python-dotenv==1.0.1`. Do not upgrade them during migration.
 - **Personal data never goes to GitHub.** `data/*.db` must be untracked and gitignored before any push.
-- **Azure resource changes require explicit owner approval.** Exactly one is needed (an inbound NSG rule, Task 7.3). Nothing else in this plan creates or modifies Azure resources.
+- **Azure resource changes require explicit owner approval.** Two have been made so far (2026-09-29): the `Allow-SSH-Laptop` source was re-pointed to the current laptop IP, and the VM was started. One remains: the inbound rule in Task 7.3. Nothing else in this plan creates or modifies Azure resources.
 
 ## Preflight Findings
 
@@ -33,6 +37,54 @@ This plan was written against the live repository on 2026-09-24. Four steps in t
 | "scp my SQLite .db file" | `data/resume.db` is *tracked in git*, so the clone delivers a stale copy that `scp` then overwrites — and the personal data in it is published to GitHub. | Task 0.1 |
 
 A fifth issue affects the final section: **the app contains no database reads.** `app/main.py` exposes only `/health` and `/`, and `app/templates/index.html` renders `{{ app_name }}` against a static placeholder. "The site shows my data" therefore cannot pass in this migration. Task 8 verifies what is genuinely true after migration — the data is present and queryable on the VM, and the site answers over the public internet — and Task 8.4 records the remaining gap explicitly rather than papering over it.
+
+---
+
+## Execution Log
+
+Updated as sections complete. Newest last.
+
+### 2026-09-29 — Section 0 (Prerequisites) — COMPLETE
+
+All 12 steps executed on the laptop; 6 commits pushed to `main`.
+
+| Task | Outcome |
+|---|---|
+| 0.1 Untrack the database | `data/resume.db` removed from git, `data/*.db` ignored, local file intact |
+| 0.2 uv project + lock | `pyproject.toml`, `.python-version` (3.13), `uv.lock` — 22 packages resolved; smoke test returned `{"status":"ok","app":"Career Platform"}` |
+| 0.3 `.env.example` | Created; all three keys `app/config.py` reads are covered |
+| 0.4 Commit schema code + push | `app/db.py`, `app/schema.sql`, `scripts/` pushed; `b90de51..bbfe992` |
+
+**Deviation:** Task 0.4 Step 1's "expect: clean" check failed because `docs/superpowers/`
+was untracked — no step in this plan commits the plan document itself. Committed
+separately (`docs: add Azure VM migration plan`). Undo with `git rm -r --cached docs/superpowers`.
+
+**Privacy question closed.** The only `data/resume.db` blob ever pushed was 0 bytes
+(`e69de29`, git's empty-blob hash). No personal data ever reached GitHub, so the
+history purge flagged in Task 0.4's note is **not needed**.
+
+### 2026-09-29 — Section 1 (Server) — COMPLETE
+
+Two blockers found and cleared before any step could run:
+
+1. **`az` was pointed at the wrong Azure account.** The CLI was signed in as
+   `djain2@lion.lmu.edu`, whose subscription contains zero resources, while the VM
+   lives in the personal `dhwanijain2905@gmail.com` account. This surfaced as
+   `ResourceGroupNotFound`, which reads like a deleted VM rather than a wrong login.
+   Fixed by `az login` with the personal account.
+2. **The VM was deallocated, and the NSG rule was stale.** `Allow-SSH-Laptop`
+   permitted `157.242.208.113/32`, but the laptop had drifted to `157.242.208.166`.
+   Either fault alone produces an identical SSH timeout. Rule re-pointed and VM started.
+
+| Step | Outcome |
+|---|---|
+| 1.1 Confirm key pair | `SHA256:Otu9QvItNrvgJe+c8gW9PmzwjepA5nerMr8lqMySg7U`, mode `600`; matches the key registered on the VM |
+| 1.2 First SSH | `azureuser@vm-career-platform`, **Ubuntu 24.04.4 LTS** — confirms the `apt-get` assumption in Section 2 |
+| 1.3 SSH config alias | `career-vm` added to `~/.ssh/config`; `ssh career-vm` verified |
+
+**Azure changes made:** NSG `Allow-SSH-Laptop` source `157.242.208.113/32` →
+`157.242.208.166/32`; `az vm start`. Both reversible. Compute billing is now running —
+`az vm deallocate -g rg-career-platform -n vm-career-platform` when done for the day.
 
 ---
 
@@ -264,7 +316,7 @@ git ls-tree -r origin/main --name-only | grep -i '\.db$' && echo "FAIL: db still
 **Files:**
 - Create: `~/.ssh/config` entry (laptop)
 
-- [ ] **Step 1: Confirm the key pair exists**
+- [x] **Step 1: Confirm the key pair exists**
 
 **Where:** laptop
 **What to run:**
@@ -276,7 +328,7 @@ ssh-keygen -lf ~/.ssh/isba4775_azure.pub
 **How we check it worked:** private key shows mode `-rw-------`; fingerprint prints `SHA256:Otu9QvItNrvgJe+c8gW9PmzwjepA5nerMr8lqMySg7U`.
 **How we undo it:** n/a — read-only check.
 
-- [ ] **Step 2: Open a first connection**
+- [x] **Step 2: Open a first connection**
 
 **Where:** laptop
 **What to run:**
@@ -287,9 +339,9 @@ ssh -i ~/.ssh/isba4775_azure azureuser@4.155.216.147 'whoami && hostname && lsb_
 **How we check it worked:** prints `azureuser`, a hostname, and an Ubuntu version string.
 **How we undo it:** n/a — read-only.
 
-> If this hangs or times out, the likely cause is the NSG's port-22 source restriction versus this laptop's current public IP (`157.242.208.113` as of 2026-09-24, and dynamic — it changes). Check the inbound rule in the portal before debugging anything else.
+> If this hangs or times out, the likely cause is the VM being deallocated, or the `Allow-SSH-Laptop` rule pointing at a stale laptop IP. Check power state first, then the rule. The laptop IP was `157.242.208.113` on 2026-09-24 and `157.242.208.166` on 2026-09-29 — it drifts.
 
-- [ ] **Step 3: Add an SSH config alias**
+- [x] **Step 3: Add an SSH config alias**
 
 **Where:** laptop
 **What to run:**
@@ -579,12 +631,12 @@ EOF'
 - [ ] **Step 3: Open port 8000 in the network security group**
 
 **Where:** Azure portal — **requires owner approval before running (this is the plan's only Azure resource change)**
-**What to click:** Portal → Resource groups → `rg-career-platform` → the NSG attached to `vm-career-platform` → Settings → Inbound security rules → **+ Add**. Set Source `IP Addresses`, Source IP `157.242.208.113/32`, Destination `Any`, Service `Custom`, Destination port ranges `8000`, Protocol `TCP`, Action `Allow`, Priority `1010`, Name `allow-http-8000`.
+**What to click:** Portal → Resource groups → `rg-career-platform` → `vm-career-platform-nsg` → Settings → Inbound security rules → **+ Add**. Set Source `IP Addresses`, Source IP `157.242.208.166/32` (re-check first — it drifts), Destination `Any`, Service `Custom`, Destination port ranges `8000`, Protocol `TCP`, Action `Allow`, Priority `1010`, Name `allow-http-8000`.
 **Why:** Azure NSGs deny inbound traffic by default, so the site is unreachable from the laptop until a rule exists. Scoping the source to this laptop's IP keeps an unauthenticated, plain-HTTP app off the open internet during testing.
 **How we check it worked:** Task 8 Step 2's `curl` from the laptop succeeds.
 **How we undo it:** delete the `allow-http-8000` inbound rule in the same blade.
 
-> The laptop IP `157.242.208.113` is dynamic and will change. When the site stops answering from the laptop but answers on the VM's own loopback, this rule is the first thing to re-check. Widening the source to `0.0.0.0/0` would expose an unauthenticated admin-less app over plain HTTP — do not do it as a debugging shortcut.
+> The laptop IP (`157.242.208.166` as of 2026-09-29) is dynamic and will change. When the site stops answering from the laptop but answers on the VM's own loopback, this rule is the first thing to re-check. Widening the source to `0.0.0.0/0` would expose an unauthenticated admin-less app over plain HTTP — do not do it as a debugging shortcut.
 
 - [ ] **Step 4: Enable and start the service**
 
