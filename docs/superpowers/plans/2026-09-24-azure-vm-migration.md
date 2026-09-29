@@ -137,6 +137,23 @@ No deviations. Two notes:
 
 ---
 
+### 2026-09-29 — Section 5 (Config) — COMPLETE
+
+| Step | Outcome |
+|---|---|
+| 5.1 Copy `.env.example` → `.env` | Created at `/home/azureuser/career-platform/.env` |
+| 5.2 Set production | `APP_ENV=production` |
+| 5.3 Restrict permissions | `-rw-------` (600), owner `azureuser` — same account systemd runs as in Section 7 |
+
+No deviations. Extra verification beyond the plan: loaded `app.config` on the VM and
+confirmed `load_dotenv` picks the file up — `APP_ENV=production` is live, and
+`DATABASE_URL=sqlite:///./data/resume.db` resolves to
+`/home/azureuser/career-platform/data/resume.db`, confirming the plan's reasoning that
+the relative URL needed no per-environment change. `git status` on the VM is clean, so
+`.env` is correctly gitignored and will not dirty the tree on future pulls.
+
+---
+
 ## Section 0: Prerequisites (laptop)
 
 *Added to the owner's outline. Every step here runs on the laptop and must be pushed before the VM clones anything.*
@@ -527,7 +544,7 @@ ssh career-vm 'cd ~/career-platform && ~/.local/bin/uv run python -c "from app.m
 
 ### Task 5: Create the VM's .env
 
-- [ ] **Step 1: Copy the example**
+- [x] **Step 1: Copy the example**
 
 **Where:** VM
 **What to run:**
@@ -538,7 +555,7 @@ ssh career-vm 'cd ~/career-platform && cp .env.example .env'
 **How we check it worked:** `ssh career-vm 'cat ~/career-platform/.env'`
 **How we undo it:** `ssh career-vm 'rm ~/career-platform/.env'`
 
-- [ ] **Step 2: Set the environment to production**
+- [x] **Step 2: Set the environment to production**
 
 **Where:** VM
 **What to run:**
@@ -549,7 +566,7 @@ ssh career-vm "cd ~/career-platform && sed -i 's/^APP_ENV=.*/APP_ENV=production/
 **How we check it worked:** the printed file shows `APP_ENV=production`.
 **How we undo it:** `ssh career-vm "cd ~/career-platform && sed -i 's/^APP_ENV=.*/APP_ENV=development/' .env"`
 
-- [ ] **Step 3: Restrict permissions**
+- [x] **Step 3: Restrict permissions**
 
 **Where:** VM
 **What to run:**
