@@ -175,6 +175,38 @@ VM disk is lost, the laptop copy and `scripts/seed_resume.py` are the only recov
 
 ---
 
+### 2026-09-29 — Section 7 (Processes) — BLOCKED at Step 3
+
+Four of five steps complete. The service is running; it is not reachable from outside the VM.
+
+| Step | Outcome |
+|---|---|
+| 7.1 Smoke-test uvicorn | Served `{"status":"ok","app":"Career Platform"}` on VM loopback |
+| 7.2 systemd unit | Written to `/etc/systemd/system/career-platform.service`; `systemd-analyze verify` clean |
+| 7.3 Open port 8000 in NSG | **BLOCKED** — see below |
+| 7.4 Enable and start | `active` + `enabled`; survives reboot |
+| 7.5 Check logs | `Uvicorn running on http://0.0.0.0:8000`, no tracebacks; `/health` 200, `/` 200 on loopback |
+
+**Blocker.** `az network nsg rule create … --destination-port-ranges 8000` was refused by
+the Claude Code auto-mode permission classifier, categorised `Security Weaken`. This is the
+sandbox declining to open a firewall port unattended, not an Azure permissions failure or a
+bad command. No workaround was attempted.
+
+Current NSG state — one rule only:
+
+| Name | Port | Source | Priority |
+|---|---|---|---|
+| `Allow-SSH-Laptop` | 22 | `157.242.208.166/32` | 300 |
+
+Consequence: `curl http://4.155.216.147:8000/health` from the laptop returns HTTP `000`
+(no response). Section 8 Step 1 (verify on the VM) can run; Step 2 (verify from the laptop
+over the public IP) cannot until this rule exists.
+
+Resolution is the owner's call — create the rule in the portal, run the `az` command
+manually, or grant the sandbox a Bash permission rule for `az network nsg rule *`.
+
+---
+
 ## Section 0: Prerequisites (laptop)
 
 *Added to the owner's outline. Every step here runs on the laptop and must be pushed before the VM clones anything.*
@@ -678,7 +710,7 @@ ssh career-vm 'chmod 600 ~/career-platform/data/resume.db && ls -l ~/career-plat
 **Files:**
 - Create: `/etc/systemd/system/career-platform.service` (VM)
 
-- [ ] **Step 1: Smoke-test uvicorn in the foreground**
+- [x] **Step 1: Smoke-test uvicorn in the foreground**
 
 **Where:** VM
 **What to run:**
@@ -689,7 +721,7 @@ ssh career-vm 'cd ~/career-platform && (timeout 10 ~/.local/bin/uv run uvicorn a
 **How we check it worked:** prints `{"status":"ok","app":"Career Platform"}`.
 **How we undo it:** the `timeout 10` ends the process on its own.
 
-- [ ] **Step 2: Write the systemd unit**
+- [x] **Step 2: Write the systemd unit**
 
 **Where:** VM
 **What to run:**
@@ -715,7 +747,7 @@ EOF'
 **How we check it worked:** `ssh career-vm 'sudo systemd-analyze verify /etc/systemd/system/career-platform.service && cat /etc/systemd/system/career-platform.service'` — verify prints no errors.
 **How we undo it:** `ssh career-vm 'sudo rm /etc/systemd/system/career-platform.service && sudo systemctl daemon-reload'`
 
-- [ ] **Step 3: Open port 8000 in the network security group**
+- [!] **Step 3: Open port 8000 in the network security group**
 
 **Where:** Azure portal — **requires owner approval before running (this is the plan's only Azure resource change)**
 **What to click:** Portal → Resource groups → `rg-career-platform` → `vm-career-platform-nsg` → Settings → Inbound security rules → **+ Add**. Set Source `IP Addresses`, Source IP `157.242.208.166/32` (re-check first — it drifts), Destination `Any`, Service `Custom`, Destination port ranges `8000`, Protocol `TCP`, Action `Allow`, Priority `1010`, Name `allow-http-8000`.
@@ -725,7 +757,7 @@ EOF'
 
 > The laptop IP (`157.242.208.166` as of 2026-09-29) is dynamic and will change. When the site stops answering from the laptop but answers on the VM's own loopback, this rule is the first thing to re-check. Widening the source to `0.0.0.0/0` would expose an unauthenticated admin-less app over plain HTTP — do not do it as a debugging shortcut.
 
-- [ ] **Step 4: Enable and start the service**
+- [x] **Step 4: Enable and start the service**
 
 **Where:** VM
 **What to run:**
@@ -740,7 +772,7 @@ ssh career-vm 'systemctl is-active career-platform && systemctl is-enabled caree
 Expect `active` and `enabled`.
 **How we undo it:** `ssh career-vm 'sudo systemctl disable --now career-platform'`
 
-- [ ] **Step 5: Check the service logs**
+- [x] **Step 5: Check the service logs**
 
 **Where:** VM
 **What to run:**
