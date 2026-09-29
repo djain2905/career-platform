@@ -219,3 +219,8 @@ __marimo__/
 
 .worktrees/
 
+
+# Local database — personal data, never committed
+data/*.db
+data/*.db-journal
+data/*.db-wal
