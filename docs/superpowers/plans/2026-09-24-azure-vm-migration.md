@@ -118,6 +118,25 @@ travel through git. Section 6 will create `data/` and `scp` the file in.
 
 ---
 
+### 2026-09-29 — Section 4 (Python) — COMPLETE
+
+| Step | Outcome |
+|---|---|
+| 4.1 Install uv | `uv 0.12.21 (x86_64-unknown-linux-gnu)` at `~/.local/bin/uv`, no sudo |
+| 4.2 `uv sync --frozen` | 22 packages installed from the lock file; `fastapi 0.115.0` confirms the pin held |
+| 4.3 App imports | `from app.main import app` succeeds — 7 routes (`/health`, `/`, `/static`, plus FastAPI's docs routes) |
+
+No deviations. Two notes:
+
+- **Cross-architecture was a non-issue.** The laptop is arm64 and the VM x86_64;
+  `uv.lock` resolved per-platform wheels without complaint. Flagged as a risk before
+  running the section, but it never materialised.
+- **Python patch versions differ by design.** Laptop 3.13.1, VM 3.13.15 — `.python-version`
+  pins the 3.13 minor series and `uv` fetched the newest patch. Ubuntu 24.04's system
+  Python is 3.12 and was correctly bypassed.
+
+---
+
 ## Section 0: Prerequisites (laptop)
 
 *Added to the owner's outline. Every step here runs on the laptop and must be pushed before the VM clones anything.*
@@ -462,7 +481,7 @@ ssh career-vm 'cd ~/career-platform && ls -l pyproject.toml uv.lock .python-vers
 
 ### Task 4: Install uv and sync the environment
 
-- [ ] **Step 1: Install uv**
+- [x] **Step 1: Install uv**
 
 **Where:** VM
 **What to run:**
@@ -476,7 +495,7 @@ ssh career-vm '~/.local/bin/uv --version'
 ```
 **How we undo it:** `ssh career-vm 'rm -rf ~/.local/bin/uv ~/.local/bin/uvx ~/.local/share/uv'`
 
-- [ ] **Step 2: Sync the locked environment**
+- [x] **Step 2: Sync the locked environment**
 
 **Where:** VM
 **What to run:**
@@ -491,7 +510,7 @@ ssh career-vm 'cd ~/career-platform && ~/.local/bin/uv run python -c "import fas
 Expect `0.115.0`.
 **How we undo it:** `ssh career-vm 'rm -rf ~/career-platform/.venv'`
 
-- [ ] **Step 3: Confirm the app imports**
+- [x] **Step 3: Confirm the app imports**
 
 **Where:** VM
 **What to run:**
