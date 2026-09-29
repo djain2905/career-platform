@@ -154,6 +154,27 @@ the relative URL needed no per-environment change. `git status` on the VM is cle
 
 ---
 
+### 2026-09-29 — Section 6 (Data) — COMPLETE
+
+Resume database copied laptop → VM over `scp`.
+
+| Step | Outcome |
+|---|---|
+| 6.1 Verify source | `Dhwani Jain`, 5 roles; SHA-256 `8a674d43a9f0077a…fcc29d95` |
+| 6.2 Create `data/` | Created — the clone did not provide it, by design (Section 0.1) |
+| 6.3 `scp` | 139,264 bytes transferred |
+| 6.4 Verify on VM | Checksum **byte-identical**; queries return `Dhwani Jain` + headline, 5 companies led by HUM Nutrition, 16 highlights |
+| 6.5 Permissions | `-rw-------` (600), owner `azureuser` |
+
+No deviations. `git status` on the VM stays clean, confirming `data/*.db` is ignored on
+both machines — the database will not be picked up by a future `git pull` or push.
+
+**This is a copy, not a backup.** The laptop retains the original, so the file now exists
+in two places, but nothing in this plan configures backups or snapshots of the VM. If the
+VM disk is lost, the laptop copy and `scripts/seed_resume.py` are the only recovery paths.
+
+---
+
 ## Section 0: Prerequisites (laptop)
 
 *Added to the owner's outline. Every step here runs on the laptop and must be pushed before the VM clones anything.*
@@ -583,7 +604,7 @@ ssh career-vm 'chmod 600 ~/career-platform/.env && ls -l ~/career-platform/.env'
 
 ### Task 6: Copy the SQLite database to the VM
 
-- [ ] **Step 1: Verify the source database on the laptop**
+- [x] **Step 1: Verify the source database on the laptop**
 
 **Where:** laptop
 **What to run:**
@@ -597,7 +618,7 @@ shasum -a 256 data/resume.db
 **How we check it worked:** prints `Dhwani Jain`, then `5`, then a SHA-256 hash.
 **How we undo it:** n/a — read-only.
 
-- [ ] **Step 2: Create the destination directory**
+- [x] **Step 2: Create the destination directory**
 
 **Where:** VM
 **What to run:**
@@ -608,7 +629,7 @@ ssh career-vm 'mkdir -p ~/career-platform/data'
 **How we check it worked:** `ssh career-vm 'ls -ld ~/career-platform/data'`
 **How we undo it:** `ssh career-vm 'rmdir ~/career-platform/data'`
 
-- [ ] **Step 3: Copy the database**
+- [x] **Step 3: Copy the database**
 
 **Where:** laptop
 **What to run:**
@@ -626,7 +647,7 @@ Must equal the laptop checksum from Step 1.
 
 > The app must not be running during this copy. On a first migration it is not running yet. When repeating this step later, stop the service first (`sudo systemctl stop career-platform`) so SQLite is not overwritten mid-write.
 
-- [ ] **Step 4: Verify the data on the VM**
+- [x] **Step 4: Verify the data on the VM**
 
 **Where:** VM
 **What to run:**
@@ -637,7 +658,7 @@ ssh career-vm 'cd ~/career-platform && sqlite3 data/resume.db "SELECT full_name,
 **How we check it worked:** prints `Dhwani Jain` with the headline, five company names beginning with `HUM Nutrition`, then `16`.
 **How we undo it:** n/a — read-only.
 
-- [ ] **Step 5: Set file permissions**
+- [x] **Step 5: Set file permissions**
 
 **Where:** VM
 **What to run:**
