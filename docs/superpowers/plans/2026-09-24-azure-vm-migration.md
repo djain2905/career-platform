@@ -12,10 +12,10 @@
 
 ## Global Constraints
 
-- **SSH identity:** always `-i ~/.ssh/isba4775_azure`, user `azureuser`, host `4.155.216.147`. Never use a different key or user.
+- **SSH identity:** always `-i ~/.ssh/isba4775_azure`, user `azureuser`, host `<VM_PUBLIC_IP>`. Never use a different key or user.
 - **VM:** `vm-career-platform` in resource group `rg-career-platform` — Ubuntu 24.04.4 LTS, `Standard_B2ts_v2`, region `westus2`. Verified 2026-09-29.
-- **Azure account:** the VM lives in the *personal* subscription `0c172be1-8e92-46b5-b003-59e42c8deaef` (tenant `Default Directory`, `dhwanijain2905@gmail.com`) — **not** the LMU subscription (`50be258e-…`, `djain2@lion.lmu.edu`), which is empty. If `az` reports `ResourceGroupNotFound`, the CLI is pointed at the wrong account: `az account set --subscription 0c172be1-8e92-46b5-b003-59e42c8deaef`.
-- **Public IP:** `4.155.216.147`, **Static** SKU — it survives deallocation, so this address stays valid when the VM is stopped and restarted.
+- **Azure account:** the VM lives in the *personal* subscription `<PERSONAL_SUBSCRIPTION_ID>` (tenant `Default Directory`, `<PERSONAL_ACCOUNT>`) — **not** the LMU subscription (`<LMU_SUBSCRIPTION_ID>`, `<LMU_ACCOUNT>`), which is empty. If `az` reports `ResourceGroupNotFound`, the CLI is pointed at the wrong account: `az account set --subscription <PERSONAL_SUBSCRIPTION_ID>`.
+- **Public IP:** `<VM_PUBLIC_IP>`, **Static** SKU — it survives deallocation, so this address stays valid when the VM is stopped and restarted.
 - **NSG:** `vm-career-platform-nsg`. Existing rule `Allow-SSH-Laptop` (port 22, priority 300) is pinned to the laptop's public IP, which is dynamic on campus wifi and **must be re-pointed whenever it drifts**.
 - **VM power state:** the VM is deallocated between sessions to stop compute billing. Start with `az vm start -g rg-career-platform -n vm-career-platform`; stop with `az vm deallocate …`. SSH fails against a deallocated VM in a way that looks identical to a bad NSG rule — check power state first.
 - **Repo:** `https://github.com/djain2905/career-platform.git`, branch `main`.
@@ -37,6 +37,24 @@ This plan was written against the live repository on 2026-09-24. Four steps in t
 | "scp my SQLite .db file" | `data/resume.db` is *tracked in git*, so the clone delivers a stale copy that `scp` then overwrites — and the personal data in it is published to GitHub. | Task 0.1 |
 
 A fifth issue affects the final section: **the app contains no database reads.** `app/main.py` exposes only `/health` and `/`, and `app/templates/index.html` renders `{{ app_name }}` against a static placeholder. "The site shows my data" therefore cannot pass in this migration. Task 8 verifies what is genuinely true after migration — the data is present and queryable on the VM, and the site answers over the public internet — and Task 8.4 records the remaining gap explicitly rather than papering over it.
+
+---
+
+## Redacted Values
+
+Host addresses, subscription IDs, account names and the SSH key fingerprint are
+replaced with `<PLACEHOLDERS>` above because this repository is public. Recover the
+real values locally:
+
+| Placeholder | How to get it |
+|---|---|
+| `<VM_PUBLIC_IP>` | `az network public-ip list -g rg-career-platform --query "[].ipAddress" -o tsv` |
+| `<LAPTOP_IP>` | `curl -4 -s https://api.ipify.org` (dynamic — re-check every session) |
+| `<PERSONAL_SUBSCRIPTION_ID>` / `<LMU_SUBSCRIPTION_ID>` | `az account list --all -o table` |
+| `<PERSONAL_ACCOUNT>` / `<LMU_ACCOUNT>` | `az account show --query user.name -o tsv` |
+| `<SSH_KEY_FINGERPRINT>` | `ssh-keygen -lf ~/.ssh/isba4775_azure.pub` |
+
+`ssh career-vm` works without any of these — `~/.ssh/config` holds the host and key.
 
 ---
 
@@ -68,22 +86,23 @@ history purge flagged in Task 0.4's note is **not needed**.
 Two blockers found and cleared before any step could run:
 
 1. **`az` was pointed at the wrong Azure account.** The CLI was signed in as
-   `djain2@lion.lmu.edu`, whose subscription contains zero resources, while the VM
-   lives in the personal `dhwanijain2905@gmail.com` account. This surfaced as
+   `<LMU_ACCOUNT>`, whose subscription contains zero resources, while the VM
+   lives in the personal `<PERSONAL_ACCOUNT>` account. This surfaced as
    `ResourceGroupNotFound`, which reads like a deleted VM rather than a wrong login.
    Fixed by `az login` with the personal account.
 2. **The VM was deallocated, and the NSG rule was stale.** `Allow-SSH-Laptop`
-   permitted `157.242.208.113/32`, but the laptop had drifted to `157.242.208.166`.
+   permitted the laptop's IP from 2026-09-24, but the laptop had since drifted to a
+   different address.
    Either fault alone produces an identical SSH timeout. Rule re-pointed and VM started.
 
 | Step | Outcome |
 |---|---|
-| 1.1 Confirm key pair | `SHA256:Otu9QvItNrvgJe+c8gW9PmzwjepA5nerMr8lqMySg7U`, mode `600`; matches the key registered on the VM |
+| 1.1 Confirm key pair | `<SSH_KEY_FINGERPRINT>`, mode `600`; matches the key registered on the VM |
 | 1.2 First SSH | `azureuser@vm-career-platform`, **Ubuntu 24.04.4 LTS** — confirms the `apt-get` assumption in Section 2 |
 | 1.3 SSH config alias | `career-vm` added to `~/.ssh/config`; `ssh career-vm` verified |
 
-**Azure changes made:** NSG `Allow-SSH-Laptop` source `157.242.208.113/32` →
-`157.242.208.166/32`; `az vm start`. Both reversible. Compute billing is now running —
+**Azure changes made:** NSG `Allow-SSH-Laptop` source re-pointed from the stale
+2026-09-24 laptop IP to the current one; `az vm start`. Both reversible. Compute billing is now running —
 `az vm deallocate -g rg-career-platform -n vm-career-platform` when done for the day.
 
 ---
@@ -196,9 +215,9 @@ Current NSG state — one rule only:
 
 | Name | Port | Source | Priority |
 |---|---|---|---|
-| `Allow-SSH-Laptop` | 22 | `157.242.208.166/32` | 300 |
+| `Allow-SSH-Laptop` | 22 | `<LAPTOP_IP>/32` | 300 |
 
-Consequence: `curl http://4.155.216.147:8000/health` from the laptop returns HTTP `000`
+Consequence: `curl http://<VM_PUBLIC_IP>:8000/health` from the laptop returns HTTP `000`
 (no response). Section 8 Step 1 (verify on the VM) can run; Step 2 (verify from the laptop
 over the public IP) cannot until this rule exists.
 
@@ -217,7 +236,7 @@ added `Temp-HTTP-8000` manually. Note it differs from the plan: source is `*`
 | Step | Outcome |
 |---|---|
 | 8.1 Verify on VM | `/health` → `{"status":"ok","app":"Career Platform"}`; `GET /` → 200 |
-| 8.2 Verify from laptop | `http://4.155.216.147:8000/health` answers; homepage returns 200 with `<title>Career Platform</title>` |
+| 8.2 Verify from laptop | `http://<VM_PUBLIC_IP>:8000/health` answers; homepage returns 200 with `<title>Career Platform</title>` |
 | 8.3 Verify data | `5 roles, 3 projects, 18 skills, 5 achievements` — matches the laptop exactly |
 | 8.4 Record the gap | Appended to `docs/plans/implementation-plan.md` |
 
@@ -476,7 +495,7 @@ ls -l ~/.ssh/isba4775_azure ~/.ssh/isba4775_azure.pub
 ssh-keygen -lf ~/.ssh/isba4775_azure.pub
 ```
 **Why:** Every later step depends on this key. Confirm it before blaming the network.
-**How we check it worked:** private key shows mode `-rw-------`; fingerprint prints `SHA256:Otu9QvItNrvgJe+c8gW9PmzwjepA5nerMr8lqMySg7U`.
+**How we check it worked:** private key shows mode `-rw-------`; fingerprint prints `<SSH_KEY_FINGERPRINT>`.
 **How we undo it:** n/a — read-only check.
 
 - [x] **Step 2: Open a first connection**
@@ -484,13 +503,13 @@ ssh-keygen -lf ~/.ssh/isba4775_azure.pub
 **Where:** laptop
 **What to run:**
 ```bash
-ssh -i ~/.ssh/isba4775_azure azureuser@4.155.216.147 'whoami && hostname && lsb_release -ds'
+ssh -i ~/.ssh/isba4775_azure azureuser@<VM_PUBLIC_IP> 'whoami && hostname && lsb_release -ds'
 ```
 **Why:** Proves the key is installed on the VM, the NSG allows port 22 from this laptop, and confirms the OS release that the `apt-get` step assumes.
 **How we check it worked:** prints `azureuser`, a hostname, and an Ubuntu version string.
 **How we undo it:** n/a — read-only.
 
-> If this hangs or times out, the likely cause is the VM being deallocated, or the `Allow-SSH-Laptop` rule pointing at a stale laptop IP. Check power state first, then the rule. The laptop IP was `157.242.208.113` on 2026-09-24 and `157.242.208.166` on 2026-09-29 — it drifts.
+> If this hangs or times out, the likely cause is the VM being deallocated, or the `Allow-SSH-Laptop` rule pointing at a stale laptop IP. Check power state first, then the rule. The laptop IP changed between 2026-09-24 and 2026-09-29 — it drifts.
 
 - [x] **Step 3: Add an SSH config alias**
 
@@ -500,7 +519,7 @@ ssh -i ~/.ssh/isba4775_azure azureuser@4.155.216.147 'whoami && hostname && lsb_
 cat >> ~/.ssh/config <<'EOF'
 
 Host career-vm
-    HostName 4.155.216.147
+    HostName <VM_PUBLIC_IP>
     User azureuser
     IdentityFile ~/.ssh/isba4775_azure
     IdentitiesOnly yes
@@ -511,7 +530,7 @@ chmod 600 ~/.ssh/config
 **How we check it worked:** `ssh career-vm 'whoami'` prints `azureuser`.
 **How we undo it:** delete the `Host career-vm` block from `~/.ssh/config`.
 
-> Later sections use `ssh career-vm` for brevity. The explicit `-i ~/.ssh/isba4775_azure azureuser@4.155.216.147` form is always equivalent.
+> Later sections use `ssh career-vm` for brevity. The explicit `-i ~/.ssh/isba4775_azure azureuser@<VM_PUBLIC_IP>` form is always equivalent.
 
 ---
 
@@ -699,7 +718,7 @@ ssh career-vm 'mkdir -p ~/career-platform/data'
 **What to run:**
 ```bash
 cd ~/isba-4775/career-platform
-scp -i ~/.ssh/isba4775_azure data/resume.db azureuser@4.155.216.147:~/career-platform/data/resume.db
+scp -i ~/.ssh/isba4775_azure data/resume.db azureuser@<VM_PUBLIC_IP>:~/career-platform/data/resume.db
 ```
 **Why:** The database carries personal data and is deliberately excluded from git, so `scp` is the transport. Copying the file directly (rather than re-running the seed on the VM) guarantees the VM serves byte-identical content to what was reviewed on the laptop.
 **How we check it worked:**
@@ -782,12 +801,12 @@ EOF'
 - [x] **Step 3: Open port 8000 in the network security group** *(done by owner 2026-09-29 as `Temp-HTTP-8000`, source `*` — see Execution Log)*
 
 **Where:** Azure portal — **requires owner approval before running (this is the plan's only Azure resource change)**
-**What to click:** Portal → Resource groups → `rg-career-platform` → `vm-career-platform-nsg` → Settings → Inbound security rules → **+ Add**. Set Source `IP Addresses`, Source IP `157.242.208.166/32` (re-check first — it drifts), Destination `Any`, Service `Custom`, Destination port ranges `8000`, Protocol `TCP`, Action `Allow`, Priority `1010`, Name `allow-http-8000`.
+**What to click:** Portal → Resource groups → `rg-career-platform` → `vm-career-platform-nsg` → Settings → Inbound security rules → **+ Add**. Set Source `IP Addresses`, Source IP `<LAPTOP_IP>/32` (re-check first — it drifts), Destination `Any`, Service `Custom`, Destination port ranges `8000`, Protocol `TCP`, Action `Allow`, Priority `1010`, Name `allow-http-8000`.
 **Why:** Azure NSGs deny inbound traffic by default, so the site is unreachable from the laptop until a rule exists. Scoping the source to this laptop's IP keeps an unauthenticated, plain-HTTP app off the open internet during testing.
 **How we check it worked:** Task 8 Step 2's `curl` from the laptop succeeds.
 **How we undo it:** delete the `allow-http-8000` inbound rule in the same blade.
 
-> The laptop IP (`157.242.208.166` as of 2026-09-29) is dynamic and will change. When the site stops answering from the laptop but answers on the VM's own loopback, this rule is the first thing to re-check. Widening the source to `0.0.0.0/0` would expose an unauthenticated admin-less app over plain HTTP — do not do it as a debugging shortcut.
+> The laptop IP (`<LAPTOP_IP>` as of 2026-09-29) is dynamic and will change. When the site stops answering from the laptop but answers on the VM's own loopback, this rule is the first thing to re-check. Widening the source to `0.0.0.0/0` would expose an unauthenticated admin-less app over plain HTTP — do not do it as a debugging shortcut.
 
 - [x] **Step 4: Enable and start the service**
 
@@ -837,8 +856,8 @@ ssh career-vm 'curl -s http://127.0.0.1:8000/health; echo; curl -s -o /dev/null 
 **Where:** laptop
 **What to run:**
 ```bash
-curl -s --max-time 10 http://4.155.216.147:8000/health; echo
-curl -s --max-time 10 http://4.155.216.147:8000/ | head -20
+curl -s --max-time 10 http://<VM_PUBLIC_IP>:8000/health; echo
+curl -s --max-time 10 http://<VM_PUBLIC_IP>:8000/ | head -20
 ```
 **Why:** This is the real acceptance test — the site answering over the public internet, which is what the migration set out to achieve.
 **How we check it worked:** the health JSON prints, and the HTML includes `<title>Career Platform</title>`.
