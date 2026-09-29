@@ -224,3 +224,4 @@ __marimo__/
 data/*.db
 data/*.db-journal
 data/*.db-wal
+data/snapshot.json

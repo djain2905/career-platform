@@ -3,23 +3,142 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{{ app_name }}</title>
+    <title>{{ data.profile.full_name }} — {{ data.profile.headline }}</title>
+    <meta name="description" content="{{ data.profile.full_name }} — {{ data.profile.headline }}{% if data.profile.location %}. Based in {{ data.profile.location }}{% endif %}." />
+    <meta property="og:title" content="{{ data.profile.full_name }}" />
+    <meta property="og:description" content="{{ data.profile.headline }}" />
+    <meta property="og:type" content="profile" />
     <link rel="stylesheet" href="/static/css/styles.css" />
   </head>
   <body>
-    <main class="page-shell">
-      <section class="hero-card">
-        <p class="eyebrow">Career Platform</p>
-        <h1>{{ app_name }}</h1>
-        <p class="subtext">
-          A database-driven professional profile and portfolio foundation.
-        </p>
-        <div class="status-row">
-          <span class="status-pill">FastAPI</span>
-          <span class="status-pill">Jinja2</span>
-          <span class="status-pill">SQLite-ready</span>
-        </div>
+    {% if source != "live" %}
+    <p class="cache-note" role="status">
+      Showing saved content{% if source == "minimal" %} — some sections are temporarily unavailable{% endif %}.
+    </p>
+    {% endif %}
+
+    <header class="hero">
+      <div class="wrap">
+        <p class="eyebrow">{{ data.profile.location }}</p>
+        <h1>{{ data.profile.full_name }}</h1>
+        <p class="headline">{{ data.profile.headline }}</p>
+        {% if data.profile.summary %}<p class="summary">{{ data.profile.summary }}</p>{% endif %}
+        {% if data.contacts %}
+        <ul class="contacts">
+          {% for c in data.contacts %}
+          <li><a href="{{ c.url }}"{% if c.url.startswith('http') %} rel="noopener noreferrer"{% endif %}>{{ c.label }}</a></li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+      </div>
+    </header>
+
+    <nav class="sticky-nav" aria-label="Sections">
+      <div class="wrap nav-inner">
+        {% if data.experience %}<a href="#experience">Experience</a>{% endif %}
+        {% if data.projects %}<a href="#projects">Projects</a>{% endif %}
+        {% if data.skills %}<a href="#skills">Skills</a>{% endif %}
+        {% if data.education %}<a href="#education">Education</a>{% endif %}
+        {% if data.achievements %}<a href="#achievements">Awards</a>{% endif %}
+      </div>
+    </nav>
+
+    <main class="wrap">
+      {% if data.experience %}
+      <section id="experience">
+        <h2>Experience</h2>
+        {% for job in data.experience %}
+        <article class="entry">
+          <div class="entry-head">
+            <h3>{{ job.role_title }}</h3>
+            <span class="dates">{{ job.date_range }}</span>
+          </div>
+          <p class="meta">{{ job.company_name }}{% if job.location %} · {{ job.location }}{% endif %}</p>
+          {% if job.highlights %}
+          <ul class="bullets">
+            {% for b in job.highlights %}<li>{{ b }}</li>{% endfor %}
+          </ul>
+          {% endif %}
+        </article>
+        {% endfor %}
       </section>
+      {% endif %}
+
+      {% if data.projects %}
+      <section id="projects">
+        <h2>Projects</h2>
+        {% for p in data.projects %}
+        <article class="entry">
+          <div class="entry-head">
+            <h3>
+              {% if p.repo_url or p.external_url %}
+              <a href="{{ p.repo_url or p.external_url }}" rel="noopener noreferrer">{{ p.title }}</a>
+              {% else %}{{ p.title }}{% endif %}
+            </h3>
+            {% if p.featured %}<span class="tag">Featured</span>{% endif %}
+          </div>
+          {% if p.short_description %}<p class="meta">{{ p.short_description }}</p>{% endif %}
+          {% if p.highlights %}
+          <ul class="bullets">
+            {% for b in p.highlights %}<li>{{ b }}</li>{% endfor %}
+          </ul>
+          {% endif %}
+        </article>
+        {% endfor %}
+      </section>
+      {% endif %}
+
+      {% if data.skills %}
+      <section id="skills">
+        <h2>Skills</h2>
+        {% for category, names in data.skills.items() %}
+        <div class="skill-group">
+          <h3>{{ category }}</h3>
+          <ul class="pills">
+            {% for n in names %}<li>{{ n }}</li>{% endfor %}
+          </ul>
+        </div>
+        {% endfor %}
+      </section>
+      {% endif %}
+
+      {% if data.education %}
+      <section id="education">
+        <h2>Education</h2>
+        {% for e in data.education %}
+        <article class="entry">
+          <div class="entry-head">
+            <h3>{{ e.institution }}</h3>
+            <span class="dates">{{ e.date_label }}</span>
+          </div>
+          {% if e.degree %}
+          <p class="meta">{{ e.degree }}{% if e.field_of_study %}, {{ e.field_of_study }}{% endif %}</p>
+          {% endif %}
+          {% if e.description %}<p class="note">{{ e.description }}</p>{% endif %}
+        </article>
+        {% endfor %}
+      </section>
+      {% endif %}
+
+      {% if data.achievements %}
+      <section id="achievements">
+        <h2>Awards &amp; Leadership</h2>
+        <ul class="awards">
+          {% for a in data.achievements %}
+          <li>
+            <strong>{{ a.title }}</strong>
+            {% if a.description %}<span class="note">{{ a.description }}</span>{% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+      </section>
+      {% endif %}
     </main>
+
+    <footer class="wrap">
+      <p>{{ data.profile.full_name }}{% if data.contacts %} ·
+        {% for c in data.contacts %}<a href="{{ c.url }}">{{ c.label }}</a>{% if not loop.last %} · {% endif %}{% endfor %}
+      {% endif %}</p>
+    </footer>
   </body>
 </html>

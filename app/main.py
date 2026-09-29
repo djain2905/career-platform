@@ -7,6 +7,7 @@ from starlette.requests import Request
 from starlette.responses import HTMLResponse
 
 from app.config import APP_NAME
+from app.repository import load_profile
 
 app = FastAPI(title=APP_NAME)
 
@@ -21,7 +22,8 @@ def healthcheck() -> dict[str, str]:
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
+    data, source = load_profile()
     return templates.TemplateResponse(
         "index.html",
-        {"request": request, "app_name": APP_NAME},
+        {"request": request, "app_name": APP_NAME, "data": data, "source": source},
     )
