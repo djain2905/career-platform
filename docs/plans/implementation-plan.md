@@ -302,3 +302,11 @@ This implementation plan is ready to move into build mode when:
 This plan is not a build instruction yet. It is a reviewable implementation plan and requires approval before coding begins.
 
 If you approve this plan, I will begin implementation in the next step.
+
+## Post-migration status (2026-09-29)
+
+The app is deployed on the Azure VM and serving. The database is present on the
+VM with the full resume loaded. The public site does not yet render that data:
+`app/main.py` exposes only `/health` and `/`, and `app/templates/index.html`
+renders a static placeholder. Wiring public pages to the database (spec §6.1)
+is the next task and is deliberately out of scope for the migration.
