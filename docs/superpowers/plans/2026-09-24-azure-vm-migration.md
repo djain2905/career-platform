@@ -103,6 +103,21 @@ expected for every `apt-get` run in this plan.
 
 ---
 
+### 2026-09-29 — Section 3 (Code) — COMPLETE
+
+Cloned to `/home/azureuser/career-platform`.
+
+| Step | Outcome |
+|---|---|
+| 3.1 Clone | VM HEAD `b1a5c55` matches laptop HEAD exactly; `app/db.py`, `app/schema.sql`, `scripts/seed_resume.py` all present |
+| 3.2 Prerequisite gate | `pyproject.toml`, `uv.lock` (107 KB), `.python-version`, `.env.example` all present |
+
+No deviations. The gate also confirms Section 0.1 worked end to end: `data/` does not
+exist in the clone and `find . -name "*.db"` returns nothing, so the database did not
+travel through git. Section 6 will create `data/` and `scp` the file in.
+
+---
+
 ## Section 0: Prerequisites (laptop)
 
 *Added to the owner's outline. Every step here runs on the laptop and must be pushed before the VM clones anything.*
@@ -415,7 +430,7 @@ ssh career-vm 'curl --version | head -1 || sudo apt-get install -y curl'
 
 ### Task 3: Clone the repository onto the VM
 
-- [ ] **Step 1: Clone**
+- [x] **Step 1: Clone**
 
 **Where:** VM
 **What to run:**
@@ -430,7 +445,7 @@ ssh career-vm 'cd ~/career-platform && git log --oneline -1 && ls app/ scripts/'
 The log line must match the laptop's `git rev-parse --short HEAD`, and `app/db.py`, `app/schema.sql` and `scripts/seed_resume.py` must all be listed.
 **How we undo it:** `ssh career-vm 'rm -rf ~/career-platform'`
 
-- [ ] **Step 2: Confirm the prerequisites actually arrived**
+- [x] **Step 2: Confirm the prerequisites actually arrived**
 
 **Where:** VM
 **What to run:**
