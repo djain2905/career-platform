@@ -207,6 +207,38 @@ manually, or grant the sandbox a Bash permission rule for `az network nsg rule *
 
 ---
 
+### 2026-09-29 — Section 7 Step 3 resolved, Section 8 (Verify) — COMPLETE
+
+**7.3 resolved by the owner.** After the sandbox refused the rule creation, the owner
+added `Temp-HTTP-8000` manually. Note it differs from the plan: source is `*`
+(`0.0.0.0/0`, the whole internet), not the `/32` the plan specified. Named
+`Temp-HTTP-8000` at priority 310 rather than `allow-http-8000` at 1010.
+
+| Step | Outcome |
+|---|---|
+| 8.1 Verify on VM | `/health` → `{"status":"ok","app":"Career Platform"}`; `GET /` → 200 |
+| 8.2 Verify from laptop | `http://4.155.216.147:8000/health` answers; homepage returns 200 with `<title>Career Platform</title>` |
+| 8.3 Verify data | `5 roles, 3 projects, 18 skills, 5 achievements` — matches the laptop exactly |
+| 8.4 Record the gap | Appended to `docs/plans/implementation-plan.md` |
+
+**MIGRATION COMPLETE.** All eight sections done.
+
+**Open security item.** Port 8000 is reachable from every IP on the internet. The app has
+no authentication and runs plain HTTP on a VM holding personal contact data. Nothing is
+exposed over HTTP today because no route reads the database — but that changes the moment
+the DB-backed routes in spec §6.1 are added, which is the next planned work. Narrow with:
+
+```bash
+az network nsg rule update -g rg-career-platform --nsg-name vm-career-platform-nsg \
+  -n Temp-HTTP-8000 --source-address-prefixes <laptop-ip>/32
+```
+
+**Cost note.** The VM is running and billing compute. Stop it when not in use:
+`az vm deallocate -g rg-career-platform -n vm-career-platform`. The static IP survives;
+the `Allow-SSH-Laptop` source will likely need re-pointing on the next session.
+
+---
+
 ## Section 0: Prerequisites (laptop)
 
 *Added to the owner's outline. Every step here runs on the laptop and must be pushed before the VM clones anything.*
@@ -789,7 +821,7 @@ ssh career-vm 'sudo journalctl -u career-platform -n 30 --no-pager'
 
 ### Task 8: Confirm the site answers and the data is live
 
-- [ ] **Step 1: Verify from the VM itself**
+- [x] **Step 1: Verify from the VM itself**
 
 **Where:** VM
 **What to run:**
@@ -800,7 +832,7 @@ ssh career-vm 'curl -s http://127.0.0.1:8000/health; echo; curl -s -o /dev/null 
 **How we check it worked:** `{"status":"ok","app":"Career Platform"}` then `200`.
 **How we undo it:** n/a — read-only.
 
-- [ ] **Step 2: Verify from the laptop over the public IP**
+- [x] **Step 2: Verify from the laptop over the public IP**
 
 **Where:** laptop
 **What to run:**
@@ -812,7 +844,7 @@ curl -s --max-time 10 http://4.155.216.147:8000/ | head -20
 **How we check it worked:** the health JSON prints, and the HTML includes `<title>Career Platform</title>`.
 **How we undo it:** n/a — read-only.
 
-- [ ] **Step 3: Verify the migrated data is live on the VM**
+- [x] **Step 3: Verify the migrated data is live on the VM**
 
 **Where:** VM
 **What to run:**
@@ -823,7 +855,7 @@ ssh career-vm 'cd ~/career-platform && sqlite3 data/resume.db "SELECT (SELECT CO
 **How we check it worked:** prints `5 roles, 3 projects, 18 skills, 5 achievements`.
 **How we undo it:** n/a — read-only.
 
-- [ ] **Step 4: Record the known gap**
+- [x] **Step 4: Record the known gap**
 
 **Where:** laptop
 **What to run:**
