@@ -88,6 +88,21 @@ Two blockers found and cleared before any step could run:
 
 ---
 
+### 2026-09-29 — Section 2 (Packages) — COMPLETE
+
+Installed on the VM with `sudo apt-get update && sudo apt-get install -y git sqlite3`.
+
+| Step | Outcome |
+|---|---|
+| 2.1 Install git + sqlite3 | `git 2.43.0`, `sqlite3 3.45.1` — both satisfy the plan's needs |
+| 2.2 Confirm curl | `curl 8.5.0` already present; no install needed for the Section 4 uv bootstrap |
+
+No deviations. `debconf: unable to initialize frontend: Readline` warnings appear
+because the SSH command is non-interactive with no controlling TTY — cosmetic, and
+expected for every `apt-get` run in this plan.
+
+---
+
 ## Section 0: Prerequisites (laptop)
 
 *Added to the owner's outline. Every step here runs on the laptop and must be pushed before the VM clones anything.*
@@ -368,7 +383,7 @@ chmod 600 ~/.ssh/config
 
 ### Task 2: Install system packages
 
-- [ ] **Step 1: Refresh the package index and install**
+- [x] **Step 1: Refresh the package index and install**
 
 **Where:** VM
 **What to run:**
@@ -383,7 +398,7 @@ ssh career-vm 'git --version && sqlite3 --version'
 Expect a version line from each.
 **How we undo it:** `ssh career-vm 'sudo apt-get remove -y sqlite3'` — do not remove `git`, other system tooling depends on it.
 
-- [ ] **Step 2: Confirm curl is present for the uv installer**
+- [x] **Step 2: Confirm curl is present for the uv installer**
 
 **Where:** VM
 **What to run:**
