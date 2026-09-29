@@ -779,7 +779,7 @@ EOF'
 **How we check it worked:** `ssh career-vm 'sudo systemd-analyze verify /etc/systemd/system/career-platform.service && cat /etc/systemd/system/career-platform.service'` — verify prints no errors.
 **How we undo it:** `ssh career-vm 'sudo rm /etc/systemd/system/career-platform.service && sudo systemctl daemon-reload'`
 
-- [!] **Step 3: Open port 8000 in the network security group**
+- [x] **Step 3: Open port 8000 in the network security group** *(done by owner 2026-09-29 as `Temp-HTTP-8000`, source `*` — see Execution Log)*
 
 **Where:** Azure portal — **requires owner approval before running (this is the plan's only Azure resource change)**
 **What to click:** Portal → Resource groups → `rg-career-platform` → `vm-career-platform-nsg` → Settings → Inbound security rules → **+ Add**. Set Source `IP Addresses`, Source IP `157.242.208.166/32` (re-check first — it drifts), Destination `Any`, Service `Custom`, Destination port ranges `8000`, Protocol `TCP`, Action `Allow`, Priority `1010`, Name `allow-http-8000`.
