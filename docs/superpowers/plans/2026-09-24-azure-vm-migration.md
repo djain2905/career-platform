@@ -46,7 +46,7 @@ A fifth issue affects the final section: **the app contains no database reads.**
 - Modify: `.gitignore`
 - Untrack: `data/resume.db`
 
-- [ ] **Step 1: Untrack the database and ignore it**
+- [x] **Step 1: Untrack the database and ignore it**
 
 **Where:** laptop
 **What to run:**
@@ -64,7 +64,7 @@ git check-ignore -v data/resume.db   # expect: a .gitignore match
 ```
 **How we undo it:** `git checkout .gitignore && git add -f data/resume.db`
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 **Where:** laptop
 **What to run:**
@@ -85,7 +85,7 @@ git commit -m "chore: untrack local sqlite database"
 - Create: `.python-version`
 - Create: `uv.lock` (generated)
 
-- [ ] **Step 1: Confirm uv is installed on the laptop**
+- [x] **Step 1: Confirm uv is installed on the laptop**
 
 **Where:** laptop
 **What to run:**
@@ -96,7 +96,7 @@ uv --version || curl -LsSf https://astral.sh/uv/install.sh | sh
 **How we check it worked:** `uv --version` prints a version.
 **How we undo it:** `rm -rf ~/.local/bin/uv ~/.local/share/uv`
 
-- [ ] **Step 2: Write pyproject.toml**
+- [x] **Step 2: Write pyproject.toml**
 
 **Where:** laptop
 **What to run:**
@@ -127,7 +127,7 @@ echo "3.13" > .python-version
 **How we check it worked:** `test -f pyproject.toml && test -f .python-version && cat .python-version`
 **How we undo it:** `rm pyproject.toml .python-version`
 
-- [ ] **Step 3: Generate the lock file**
+- [x] **Step 3: Generate the lock file**
 
 **Where:** laptop
 **What to run:**
@@ -141,7 +141,7 @@ test -f uv.lock && grep -c 'name = ' uv.lock   # expect a count well above 4 (tr
 ```
 **How we undo it:** `rm uv.lock`
 
-- [ ] **Step 4: Verify the locked environment actually runs the app**
+- [x] **Step 4: Verify the locked environment actually runs the app**
 
 **Where:** laptop
 **What to run:**
@@ -156,7 +156,7 @@ kill %1
 **How we check it worked:** the curl prints `{"status":"ok","app":"Career Platform"}`.
 **How we undo it:** `rm -rf .venv`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 **Where:** laptop
 **What to run:**
@@ -174,7 +174,7 @@ git commit -m "build: add uv project definition and lock file"
 **Files:**
 - Create: `.env.example`
 
-- [ ] **Step 1: Write the example config**
+- [x] **Step 1: Write the example config**
 
 **Where:** laptop
 **What to run:**
@@ -194,7 +194,7 @@ grep -o 'os.getenv("[A-Z_]*"' app/config.py   # every key printed must appear in
 ```
 **How we undo it:** `rm .env.example`
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 **Where:** laptop
 **What to run:**
@@ -212,7 +212,7 @@ git commit -m "docs: add .env.example documenting runtime config keys"
 **Files:**
 - Commit: `app/db.py`, `app/schema.sql`, `scripts/__init__.py`, `scripts/init_db.py`, `scripts/seed_resume.py`
 
-- [ ] **Step 1: Commit the untracked database code**
+- [x] **Step 1: Commit the untracked database code**
 
 **Where:** laptop
 **What to run:**
@@ -228,7 +228,7 @@ git ls-files app/db.py app/schema.sql scripts/
 ```
 **How we undo it:** `git reset --soft HEAD~1`
 
-- [ ] **Step 2: Push everything to GitHub**
+- [x] **Step 2: Push everything to GitHub**
 
 **Where:** laptop
 **What to run:**
@@ -242,7 +242,7 @@ git status -sb        # expect: "## main...origin/main" with no ahead/behind mar
 ```
 **How we undo it:** `git push --force-with-lease origin HEAD~4:main` — destructive and rewrites shared history. Prefer `git revert <sha>` followed by a normal push.
 
-- [ ] **Step 3: Confirm the database is genuinely absent from the remote**
+- [x] **Step 3: Confirm the database is genuinely absent from the remote**
 
 **Where:** laptop
 **What to run:**
