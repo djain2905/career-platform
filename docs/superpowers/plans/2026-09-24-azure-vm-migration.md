@@ -8,7 +8,7 @@
 
 **Tech Stack:** Ubuntu (Azure VM), git, sqlite3, uv, Python 3.13, FastAPI 0.115.0, Uvicorn 0.30.6, Jinja2 3.1.4, systemd
 
-**Spec:** `docs/specs/career-platform-app-spec.md` (deployment direction: `docs/plans/implementation-plan.md` §1, "local Codespace first, then eventual Azure VM deployment")
+**Spec:** `docs/superpowers/specs/2026-09-15-career-platform-app-spec.md` (deployment direction: `docs/superpowers/plans/2026-09-15-implementation-plan.md` §1, "local Codespace first, then eventual Azure VM deployment")
 
 ## Global Constraints
 
@@ -238,7 +238,7 @@ added `Temp-HTTP-8000` manually. Note it differs from the plan: source is `*`
 | 8.1 Verify on VM | `/health` → `{"status":"ok","app":"Career Platform"}`; `GET /` → 200 |
 | 8.2 Verify from laptop | `http://<VM_PUBLIC_IP>:8000/health` answers; homepage returns 200 with `<title>Career Platform</title>` |
 | 8.3 Verify data | `5 roles, 3 projects, 18 skills, 5 achievements` — matches the laptop exactly |
-| 8.4 Record the gap | Appended to `docs/plans/implementation-plan.md` |
+| 8.4 Record the gap | Appended to `docs/superpowers/plans/2026-09-15-implementation-plan.md` |
 
 **MIGRATION COMPLETE.** All eight sections done.
 
@@ -880,7 +880,7 @@ ssh career-vm 'cd ~/career-platform && sqlite3 data/resume.db "SELECT (SELECT CO
 **What to run:**
 ```bash
 cd ~/isba-4775/career-platform
-cat >> docs/plans/implementation-plan.md <<'EOF'
+cat >> docs/superpowers/plans/2026-09-15-implementation-plan.md <<'EOF'
 
 ## Post-migration status (2026-09-24)
 
@@ -890,12 +890,12 @@ VM with the full resume loaded. The public site does not yet render that data:
 renders a static placeholder. Wiring public pages to the database (spec §6.1)
 is the next task and is deliberately out of scope for the migration.
 EOF
-git add docs/plans/implementation-plan.md
+git add docs/superpowers/plans/2026-09-15-implementation-plan.md
 git commit -m "docs: record post-migration status and remaining gap"
 git push origin main
 ```
 **Why:** The outline's goal was "the site answers on the VM and shows my data." After this migration the first half is true and the second is not, because no route reads the database. Recording that in the plan document keeps the gap visible instead of leaving a half-true success claim.
-**How we check it worked:** `git log --oneline -1` shows the docs commit; `tail -12 docs/plans/implementation-plan.md` shows the new section.
+**How we check it worked:** `git log --oneline -1` shows the docs commit; `tail -12 docs/superpowers/plans/2026-09-15-implementation-plan.md` shows the new section.
 **How we undo it:** `git reset --hard HEAD~1` then `git push --force-with-lease origin main`.
 
 ---
