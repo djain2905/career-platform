@@ -912,3 +912,45 @@ ssh career-vm 'rm -rf ~/.local/bin/uv ~/.local/bin/uvx ~/.local/share/uv'
 ssh career-vm 'sudo apt-get remove -y sqlite3'
 ```
 Then delete the `allow-http-8000` inbound NSG rule in the portal. The VM itself, its public IP, and the SSH key are left intact.
+
+---
+
+## Verify results
+
+What Section 8 tested, and what each check returned when it ran on **2026-09-29**.
+The VM was deallocated after the exercise, so these are recorded results, not live ones.
+
+| # | Check | Command | What it showed | Result |
+|---|---|---|---|---|
+| 8.1 | App answers on the VM's own loopback | `curl http://127.0.0.1:8000/health` | `{"status":"ok","app":"Career Platform"}` | PASS |
+| 8.1 | Homepage renders on the VM | `curl -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/` | `200` | PASS |
+| 8.1 | Service is running under systemd | `systemctl is-active career-platform` | `active` (and `enabled`, so it survives reboot) | PASS |
+| 8.2 | Site reachable from the laptop over the public IP | `curl http://<VM_PUBLIC_IP>:8000/health` | First run returned HTTP `000` — no NSG rule for port 8000 existed yet. After the rule was added: `{"status":"ok","app":"Career Platform"}` | PASS (after fix) |
+| 8.2 | Homepage reachable over the public internet | `curl http://<VM_PUBLIC_IP>:8000/` | `200`, HTML containing `<title>Career Platform</title>` | PASS |
+| 8.3 | Migrated data present and queryable on the VM | `sqlite3 data/resume.db "SELECT COUNT(*) …"` | `5 roles, 3 projects, 18 skills, 5 achievements` — identical to the laptop counts | PASS |
+| 8.4 | Known gap recorded | append + commit | Post-migration status written to the implementation plan | DONE |
+
+### Why 8.1 and 8.2 are separate checks
+
+8.1 tests the application; 8.2 tests the network path to it. Splitting them meant the
+one failure in this section was diagnosed immediately: 8.1 passed and 8.2 returned
+`000`, which located the fault in the NSG rather than the app. Had they been a single
+check, a failure would not have said which layer was at fault.
+
+### Re-verification after the site became database-driven
+
+Section 8 ran while the site still served a static placeholder. After the public pages
+were wired to SQLite later the same day, the deployed site was checked again over the
+public IP:
+
+| Check | What it showed | Result |
+|---|---|---|
+| All five roles render | HUM Nutrition, DecisionNext, Scorpio Tankers, Digital Veterans Legacy Project, GeoServe | PASS |
+| All three projects render | L'Oréal / Lancôme, LMU Datathon, Auto Recall | PASS |
+| Skills and languages render | `Snowflake`, `Arabic` present | PASS |
+| Education renders | `Loyola Marymount`, `Expected May 2027` | PASS |
+| Dates formatted from month-precision values | `Jun 2026 – Present` | PASS |
+| Phone number **not** published | no match for the number anywhere in the HTML | PASS |
+| Served from the live database, not the cached snapshot | no `cache-note` element in the HTML | PASS |
+| Degraded-read fallback works (spec §9.4) | database file moved away → HTTP `200`, full content from snapshot, "Showing saved content" notice displayed | PASS |
+| Unit tests | 16 passed (dict shape, ordering, draft exclusion, phone filtering, date formatting, all three fallback tiers) | PASS |
