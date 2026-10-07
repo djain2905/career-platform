@@ -9,8 +9,21 @@
     <meta property="og:description" content="{{ data.profile.headline }}" />
     <meta property="og:type" content="profile" />
     <link rel="stylesheet" href="/static/css/styles.css" />
+    {% set profile_urls = [] %}
+    {% for c in data.contacts %}{% if c.url and c.url.startswith('http') %}{% set _ = profile_urls.append(c.url) %}{% endif %}{% endfor %}
+    <script type="application/ld+json">
+      {{ {
+        "@context": "https://schema.org",
+        "@type": "Person",
+        "name": data.profile.full_name,
+        "description": data.profile.headline,
+        "address": data.profile.location,
+        "sameAs": profile_urls
+      } | tojson }}
+    </script>
   </head>
   <body>
+    <a class="skip-link" href="#main">Skip to content</a>
     {% if source != "live" %}
     <p class="cache-note" role="status">
       Showing saved content{% if source == "minimal" %} — some sections are temporarily unavailable{% endif %}.
@@ -19,10 +32,12 @@
 
     <header class="hero">
       <div class="wrap">
-        <p class="eyebrow">{{ data.profile.location }}</p>
         <h1>{{ data.profile.full_name }}</h1>
         <p class="headline">{{ data.profile.headline }}</p>
         {% if data.profile.summary %}<p class="summary">{{ data.profile.summary }}</p>{% endif %}
+        {% if data.education and data.education[0].date_label %}
+        <p class="availability">Graduating {{ data.education[0].date_label | replace("Expected ", "") }}{% if data.profile.location %} · {{ data.profile.location }}{% endif %}</p>
+        {% endif %}
         {% if data.contacts %}
         <ul class="contacts">
           {% for c in data.contacts %}
@@ -39,14 +54,14 @@
         {% if data.projects %}<a href="#projects">Projects</a>{% endif %}
         {% if data.skills %}<a href="#skills">Skills</a>{% endif %}
         {% if data.education %}<a href="#education">Education</a>{% endif %}
-        {% if data.achievements %}<a href="#achievements">Awards</a>{% endif %}
+        {% if data.achievements %}<a href="#achievements">Awards &amp; Leadership</a>{% endif %}
       </div>
     </nav>
 
-    <main class="wrap">
+    <main class="wrap" id="main">
       {% if data.experience %}
-      <section id="experience">
-        <h2>Experience</h2>
+      <section id="experience" aria-labelledby="h-experience">
+        <h2 id="h-experience">Experience</h2>
         {% for job in data.experience %}
         <article class="entry">
           <div class="entry-head">
@@ -65,8 +80,8 @@
       {% endif %}
 
       {% if data.projects %}
-      <section id="projects">
-        <h2>Projects</h2>
+      <section id="projects" aria-labelledby="h-projects">
+        <h2 id="h-projects">Projects</h2>
         {% for p in data.projects %}
         <article class="entry">
           <div class="entry-head">
@@ -89,8 +104,8 @@
       {% endif %}
 
       {% if data.skills %}
-      <section id="skills">
-        <h2>Skills</h2>
+      <section id="skills" aria-labelledby="h-skills">
+        <h2 id="h-skills">Skills</h2>
         {% for category, names in data.skills.items() %}
         <div class="skill-group">
           <h3>{{ category }}</h3>
@@ -103,8 +118,8 @@
       {% endif %}
 
       {% if data.education %}
-      <section id="education">
-        <h2>Education</h2>
+      <section id="education" aria-labelledby="h-education">
+        <h2 id="h-education">Education</h2>
         {% for e in data.education %}
         <article class="entry">
           <div class="entry-head">
@@ -121,12 +136,12 @@
       {% endif %}
 
       {% if data.achievements %}
-      <section id="achievements">
-        <h2>Awards &amp; Leadership</h2>
+      <section id="achievements" aria-labelledby="h-achievements">
+        <h2 id="h-achievements">Awards &amp; Leadership</h2>
         <ul class="awards">
           {% for a in data.achievements %}
           <li>
-            <strong>{{ a.title }}</strong>
+            <h3>{{ a.title }}</h3>
             {% if a.description %}<span class="note">{{ a.description }}</span>{% endif %}
           </li>
           {% endfor %}
@@ -137,8 +152,30 @@
 
     <footer class="wrap">
       <p>{{ data.profile.full_name }}{% if data.contacts %} ·
-        {% for c in data.contacts %}<a href="{{ c.url }}">{{ c.label }}</a>{% if not loop.last %} · {% endif %}{% endfor %}
+        {% for c in data.contacts %}<a href="{{ c.url }}"{% if c.url.startswith('http') %} rel="noopener noreferrer"{% endif %}>{{ c.label }}</a>{% if not loop.last %} · {% endif %}{% endfor %}
       {% endif %}</p>
     </footer>
+    <script>
+      (function () {
+        var links = document.querySelectorAll(".sticky-nav a");
+        if (!links.length || !("IntersectionObserver" in window)) return;
+        var byId = {};
+        links.forEach(function (a) { byId[a.getAttribute("href").slice(1)] = a; });
+        var seen = new Set();
+        var io = new IntersectionObserver(function (entries) {
+          entries.forEach(function (e) {
+            if (e.isIntersecting) seen.add(e.target.id); else seen.delete(e.target.id);
+          });
+          links.forEach(function (a) { a.removeAttribute("aria-current"); });
+          for (var id in byId) {
+            if (seen.has(id)) { byId[id].setAttribute("aria-current", "true"); break; }
+          }
+        }, { rootMargin: "-20% 0px -70% 0px" });
+        Object.keys(byId).forEach(function (id) {
+          var el = document.getElementById(id);
+          if (el) io.observe(el);
+        });
+      })();
+    </script>
   </body>
 </html>

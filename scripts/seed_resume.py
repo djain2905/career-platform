@@ -159,9 +159,6 @@ PROJECTS = [
         "end_date": None,
         "highlights": [
             "Competed against 150+ participants from 18+ universities.",
-            # NOTE: this bullet is duplicated verbatim from the L'Oréal project
-            # on the source resume and looks like a copy/paste error.
-            "Automated weekly data pipelines via GitHub Actions and built an LLM-queryable brand knowledge base from 19 scraped sources.",
             "Analyzed the impact of meal break regulations on EMT operations using Python, SQL, and Excel; presented findings to 10+ industry judges.",
         ],
     },
