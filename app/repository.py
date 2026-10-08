@@ -1,4 +1,4 @@
-"""Read the public profile out of SQLite, with a snapshot fallback.
+"""Read the public profile out of PostgreSQL, with a snapshot fallback.
 
 `load_profile()` returns one nested dict describing everything the public page
 renders. That same dict is what gets written to the snapshot file, so the
@@ -8,17 +8,26 @@ never has to know which source it got.
 from __future__ import annotations
 
 import json
+import logging
 import os
-import sqlite3
 import tempfile
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import psycopg
+
 from app.config import BASE_DIR
-from app.db import database_path
+from app.db import DatabaseNotConfigured, connect
+
+log = logging.getLogger(__name__)
 
 SNAPSHOT_PATH = BASE_DIR / "data" / "snapshot.json"
+
+
+class NoProfile(LookupError):
+    """The database is reachable but holds no person_profile row."""
+
 
 # Contact types that must never be rendered publicly or written to the
 # snapshot. Filtered at this chokepoint so no caller can leak them by accident.
@@ -53,18 +62,19 @@ MINIMAL: dict[str, Any] = {
 }
 
 
-def format_month(value: str | None) -> str:
-    """'2026-06-01' -> 'Jun 2026'. Dates are month-precision from the resume."""
+def format_month(value: date | str | None) -> str:
+    """date(2026, 6, 1) or '2026-06-01' -> 'Jun 2026'. Dates are month-precision."""
     if not value:
         return ""
-    try:
-        dt = datetime.strptime(value[:10], "%Y-%m-%d")
-    except ValueError:
-        return ""
-    return f"{MONTHS[dt.month - 1]} {dt.year}"
+    if isinstance(value, str):
+        try:
+            value = datetime.strptime(value[:10], "%Y-%m-%d").date()
+        except ValueError:
+            return ""
+    return f"{MONTHS[value.month - 1]} {value.year}"
 
 
-def format_date_range(start: str | None, end: str | None, is_current: int) -> str:
+def format_date_range(start: date | str | None, end: date | str | None, is_current: bool) -> str:
     left = format_month(start)
     if is_current:
         return f"{left} – Present" if left else "Present"
@@ -74,7 +84,12 @@ def format_date_range(start: str | None, end: str | None, is_current: int) -> st
     return left or right
 
 
-def _group_highlights(conn: sqlite3.Connection, table: str, fk: str) -> dict[int, list[str]]:
+def _iso(value: date | None) -> str | None:
+    """Dates leave this module as strings so the dict stays JSON-serializable."""
+    return value.isoformat() if value else None
+
+
+def _group_highlights(conn: psycopg.Connection, table: str, fk: str) -> dict[int, list[str]]:
     """One query for all bullets, grouped in Python — avoids N+1 per row."""
     grouped: dict[int, list[str]] = {}
     for row in conn.execute(f"SELECT {fk}, body FROM {table} ORDER BY {fk}, order_index"):
@@ -82,23 +97,21 @@ def _group_highlights(conn: sqlite3.Connection, table: str, fk: str) -> dict[int
     return grouped
 
 
-def _read_live(db_path: Path) -> dict[str, Any]:
-    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
-    conn.row_factory = sqlite3.Row
-    try:
+def _read_live(database_url: str | None) -> dict[str, Any]:
+    with connect(database_url, read_only=True) as conn:
         profile_row = conn.execute(
             "SELECT id, full_name, headline, summary, location FROM person_profile "
             "ORDER BY id LIMIT 1"
         ).fetchone()
         if profile_row is None:
-            raise sqlite3.DatabaseError("no person_profile row")
+            raise NoProfile("no person_profile row")
         pid = profile_row["id"]
 
         contacts = [
             {"type": r["type"], "label": r["label"], "value": r["value"], "url": r["url"]}
             for r in conn.execute(
                 "SELECT type, label, value, url FROM contact_method "
-                "WHERE profile_id = ? ORDER BY order_index", (pid,))
+                "WHERE profile_id = %s ORDER BY order_index", (pid,))
             if r["type"] not in PRIVATE_CONTACT_TYPES
         ]
 
@@ -107,16 +120,16 @@ def _read_live(db_path: Path) -> dict[str, Any]:
         for r in conn.execute(
             "SELECT id, company_name, role_title, employment_type, location, start_date, "
             "end_date, is_current FROM role_experience "
-            "WHERE profile_id = ? AND status = 'published' ORDER BY order_index", (pid,)
+            "WHERE profile_id = %s AND status = 'published' ORDER BY order_index", (pid,)
         ):
             experience.append({
                 "company_name": r["company_name"],
                 "role_title": r["role_title"],
                 "employment_type": r["employment_type"],
                 "location": r["location"],
-                "start_date": r["start_date"],
-                "end_date": r["end_date"],
-                "is_current": bool(r["is_current"]),
+                "start_date": _iso(r["start_date"]),
+                "end_date": _iso(r["end_date"]),
+                "is_current": r["is_current"],
                 "date_range": format_date_range(r["start_date"], r["end_date"], r["is_current"]),
                 "highlights": exp_bullets.get(r["id"], []),
             })
@@ -125,7 +138,7 @@ def _read_live(db_path: Path) -> dict[str, Any]:
         projects = []
         for r in conn.execute(
             "SELECT id, title, slug, short_description, repo_url, external_url, featured "
-            "FROM project WHERE profile_id = ? AND status = 'published' ORDER BY order_index", (pid,)
+            "FROM project WHERE profile_id = %s AND status = 'published' ORDER BY order_index", (pid,)
         ):
             projects.append({
                 "title": r["title"],
@@ -133,7 +146,7 @@ def _read_live(db_path: Path) -> dict[str, Any]:
                 "short_description": r["short_description"],
                 "repo_url": r["repo_url"],
                 "external_url": r["external_url"],
-                "featured": bool(r["featured"]),
+                "featured": r["featured"],
                 "highlights": proj_bullets.get(r["id"], []),
             })
 
@@ -141,7 +154,7 @@ def _read_live(db_path: Path) -> dict[str, Any]:
         for r in conn.execute(
             "SELECT s.name, s.category FROM skill s "
             "JOIN skill_proficiency sp ON sp.skill_id = s.id "
-            "WHERE sp.profile_id = ? ORDER BY s.sort_order", (pid,)
+            "WHERE sp.profile_id = %s ORDER BY s.sort_order", (pid,)
         ):
             skills.setdefault(r["category"] or "Other", []).append(r["name"])
 
@@ -149,7 +162,7 @@ def _read_live(db_path: Path) -> dict[str, Any]:
         for r in conn.execute(
             "SELECT institution, degree, field_of_study, location, end_date, is_expected, "
             "description FROM education_record "
-            "WHERE profile_id = ? AND status = 'published' ORDER BY order_index", (pid,)
+            "WHERE profile_id = %s AND status = 'published' ORDER BY order_index", (pid,)
         ):
             label = format_month(r["end_date"])
             education.append({
@@ -165,30 +178,29 @@ def _read_live(db_path: Path) -> dict[str, Any]:
             {"title": r["title"], "description": r["description"], "source": r["source"]}
             for r in conn.execute(
                 "SELECT title, description, source FROM achievement "
-                "WHERE profile_id = ? AND status = 'published' ORDER BY order_index", (pid,))
+                "WHERE profile_id = %s AND status = 'published' ORDER BY order_index", (pid,))
         ]
 
-        return {
-            "profile": {
-                "full_name": profile_row["full_name"],
-                "headline": profile_row["headline"],
-                "summary": profile_row["summary"],
-                "location": profile_row["location"],
-            },
-            "contacts": contacts,
-            "experience": experience,
-            "projects": projects,
-            "skills": skills,
-            "education": education,
-            "achievements": achievements,
-            "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        }
-    finally:
-        conn.close()
+    return {
+        "profile": {
+            "full_name": profile_row["full_name"],
+            "headline": profile_row["headline"],
+            "summary": profile_row["summary"],
+            "location": profile_row["location"],
+        },
+        "contacts": contacts,
+        "experience": experience,
+        "projects": projects,
+        "skills": skills,
+        "education": education,
+        "achievements": achievements,
+        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    }
 
 
 def _write_snapshot(data: dict[str, Any], path: Path) -> None:
     """Atomic write — a crash mid-write must not leave truncated JSON behind."""
+    path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
     try:
         with os.fdopen(fd, "w") as fh:
@@ -200,16 +212,16 @@ def _write_snapshot(data: dict[str, Any], path: Path) -> None:
 
 
 def load_profile(
-    db_path: Path | None = None,
+    database_url: str | None = None,
     snapshot_path: Path | None = None,
 ) -> tuple[dict[str, Any], str]:
     """Return (profile_dict, source) where source is 'live', 'snapshot' or 'minimal'."""
-    db_path = db_path or database_path()
     snapshot_path = snapshot_path or SNAPSHOT_PATH
 
     try:
-        data = _read_live(db_path)
-    except (sqlite3.Error, OSError):
+        data = _read_live(database_url)
+    except (psycopg.Error, DatabaseNotConfigured, NoProfile, OSError) as exc:
+        log.warning("live read failed, serving fallback: %s", exc)
         try:
             return json.loads(snapshot_path.read_text()), "snapshot"
         except (OSError, ValueError):
