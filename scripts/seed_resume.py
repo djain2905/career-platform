@@ -9,7 +9,7 @@ Usage:  python -m scripts.seed_resume
 """
 from __future__ import annotations
 
-from app.db import connect, database_path, init_schema
+from app.db import connect, init_schema
 
 PROFILE = {
     "full_name": "Dhwani Jain",
@@ -248,25 +248,25 @@ def seed(conn) -> dict[str, int]:
     cur = conn.cursor()
 
     # Idempotent reload: drop this person and let cascades clear dependents.
-    cur.execute("DELETE FROM person_profile WHERE full_name = ?", (PROFILE["full_name"],))
+    cur.execute("DELETE FROM person_profile WHERE full_name = %s", (PROFILE["full_name"],))
     cur.execute("DELETE FROM skill")
 
-    cur.execute(
+    pid = cur.execute(
         """INSERT INTO person_profile
            (full_name, headline, summary, location, pronouns,
             preferred_role, availability_status)
-           VALUES (:full_name, :headline, :summary, :location, :pronouns,
-                   :preferred_role, :availability_status)""",
+           VALUES (%(full_name)s, %(headline)s, %(summary)s, %(location)s, %(pronouns)s,
+                   %(preferred_role)s, %(availability_status)s)
+           RETURNING id""",
         PROFILE,
-    )
-    pid = cur.lastrowid
+    ).fetchone()["id"]
 
     for i, (ctype, label, value, url, primary) in enumerate(CONTACTS):
         cur.execute(
             """INSERT INTO contact_method
                (profile_id, type, label, value, url, is_primary, order_index)
-               VALUES (?, ?, ?, ?, ?, ?, ?)""",
-            (pid, ctype, label, value, url, primary, i),
+               VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+            (pid, ctype, label, value, url, bool(primary), i),
         )
 
     for i, ed in enumerate(EDUCATION):
@@ -274,62 +274,61 @@ def seed(conn) -> dict[str, int]:
             """INSERT INTO education_record
                (profile_id, institution, degree, field_of_study, location,
                 start_date, end_date, is_expected, description, order_index)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
             (pid, ed["institution"], ed["degree"], ed["field_of_study"],
              ed["location"], ed["start_date"], ed["end_date"],
-             ed["is_expected"], ed["description"], i),
+             bool(ed["is_expected"]), ed["description"], i),
         )
 
     for i, job in enumerate(EXPERIENCE):
-        cur.execute(
+        eid = cur.execute(
             """INSERT INTO role_experience
                (profile_id, company_name, role_title, employment_type, location,
                 start_date, end_date, is_current, order_index)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+               RETURNING id""",
             (pid, job["company_name"], job["role_title"], job["employment_type"],
              job["location"], job["start_date"], job["end_date"],
-             job["is_current"], i),
-        )
-        eid = cur.lastrowid
+             bool(job["is_current"]), i),
+        ).fetchone()["id"]
         for j, body in enumerate(job["highlights"]):
             cur.execute(
-                "INSERT INTO experience_highlight (experience_id, body, order_index) VALUES (?, ?, ?)",
+                "INSERT INTO experience_highlight (experience_id, body, order_index) VALUES (%s, %s, %s)",
                 (eid, body, j),
             )
 
     for i, proj in enumerate(PROJECTS):
-        cur.execute(
+        prid = cur.execute(
             """INSERT INTO project
                (profile_id, title, slug, short_description, start_date, end_date,
                 external_url, repo_url, featured, order_index)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+               RETURNING id""",
             (pid, proj["title"], proj["slug"], proj["short_description"],
              proj["start_date"], proj["end_date"], proj["external_url"],
-             proj["repo_url"], proj["featured"], i),
-        )
-        prid = cur.lastrowid
+             proj["repo_url"], bool(proj["featured"]), i),
+        ).fetchone()["id"]
         for j, body in enumerate(proj["highlights"]):
             cur.execute(
-                "INSERT INTO project_highlight (project_id, body, order_index) VALUES (?, ?, ?)",
+                "INSERT INTO project_highlight (project_id, body, order_index) VALUES (%s, %s, %s)",
                 (prid, body, j),
             )
 
     for i, (name, category, level) in enumerate(SKILLS):
-        cur.execute(
-            "INSERT INTO skill (name, category, sort_order) VALUES (?, ?, ?)",
+        sid = cur.execute(
+            "INSERT INTO skill (name, category, sort_order) VALUES (%s, %s, %s) RETURNING id",
             (name, category, i),
-        )
-        sid = cur.lastrowid
+        ).fetchone()["id"]
         cur.execute(
             """INSERT INTO skill_proficiency (profile_id, skill_id, proficiency_level)
-               VALUES (?, ?, ?)""",
+               VALUES (%s, %s, %s)""",
             (pid, sid, level),
         )
 
     for cert in CERTIFICATIONS:
         cur.execute(
             """INSERT INTO certification (profile_id, name, issuer, date_earned, credential_url)
-               VALUES (?, ?, ?, ?, ?)""",
+               VALUES (%s, %s, %s, %s, %s)""",
             (pid, cert["name"], cert["issuer"], cert["date_earned"], cert["credential_url"]),
         )
 
@@ -337,7 +336,7 @@ def seed(conn) -> dict[str, int]:
         cur.execute(
             """INSERT INTO achievement
                (profile_id, title, description, date_earned, source, order_index)
-               VALUES (?, ?, ?, ?, ?, ?)""",
+               VALUES (%s, %s, %s, %s, %s, %s)""",
             (pid, ach["title"], ach["description"], ach["date_earned"], ach["source"], i),
         )
 
@@ -348,18 +347,16 @@ def seed(conn) -> dict[str, int]:
                   "role_experience", "experience_highlight", "project",
                   "project_highlight", "skill", "skill_proficiency",
                   "certification", "achievement"):
-        counts[table] = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+        counts[table] = conn.execute(f"SELECT COUNT(*) AS n FROM {table}").fetchone()["n"]
     return counts
 
 
 def main() -> None:
-    conn = connect()
-    try:
+    with connect() as conn:
         init_schema(conn)
         counts = seed(conn)
-    finally:
-        conn.close()
-    print(f"Seeded {database_path()}")
+        where = f"{conn.info.host}/{conn.info.dbname}"
+    print(f"Seeded {where}")
     for table, n in counts.items():
         print(f"  {table:<22} {n}")
 

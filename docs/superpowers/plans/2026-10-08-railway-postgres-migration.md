@@ -1168,14 +1168,14 @@ Run: `uv run pytest -v` → all pass.
 
 ```bash
 docker exec career-pg-test createdb -U postgres career_dev
-cp .env.example .env                      # replaces the old sqlite:/// URL
+export DATABASE_URL=postgresql://postgres:test@localhost:54329/career_dev   # overrides .env
 uv run python -m scripts.init_db          # expect "14 tables: ..."
 uv run python -m scripts.seed_resume
-uv run uvicorn app.main:app --port 8000 &
-sleep 2; curl -s localhost:8000/ | grep -c "HUM Nutrition"; curl -s localhost:8000/ | grep -c "Showing saved content"; kill %1
+uv run uvicorn app.main:app --port 8765 &
+sleep 2; curl -s localhost:8765/ | grep -c "HUM Nutrition"; curl -s localhost:8765/ | grep -c "Showing saved content"; kill %1
 ```
 
-Expected: `1` or greater for HUM Nutrition, `0` for the banner. The `.env` is gitignored, so check it isn't staged.
+Expected: `1` or greater for HUM Nutrition, `0` for the banner. Never copy `.env.example` over `.env`, because the owner's `.env` may hold other values. `load_dotenv` never overrides an exported variable, so the `export` is enough.
 
 - [ ] **Step 6: Commit**
 

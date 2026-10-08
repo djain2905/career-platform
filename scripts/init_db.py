@@ -1,26 +1,24 @@
-"""Create (or re-apply) the Career Platform schema.
+"""Create (or re-apply) the Career Platform schema. Runs before every Railway deploy.
 
 Usage:  python -m scripts.init_db
 """
 from __future__ import annotations
 
-from app.db import connect, database_path, init_schema
+from app.db import connect, init_schema
 
 
 def main() -> None:
-    conn = connect()
-    try:
+    with connect() as conn:
         init_schema(conn)
         tables = [
-            r["name"]
+            r["table_name"]
             for r in conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' "
-                "AND name NOT LIKE 'sqlite_%' ORDER BY name"
+                "SELECT table_name FROM information_schema.tables "
+                "WHERE table_schema = 'public' ORDER BY table_name"
             )
         ]
-    finally:
-        conn.close()
-    print(f"Schema applied to {database_path()}")
+        where = f"{conn.info.host}/{conn.info.dbname}"
+    print(f"Schema applied to {where}")
     print(f"{len(tables)} tables: {', '.join(tables)}")
 
 
