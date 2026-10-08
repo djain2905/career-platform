@@ -660,3 +660,35 @@ Two deviations from the plan, both benign. The NSG rule was named `Allow-HTTP-80
 does not match this plan or the handout. An `Allow-HTTPS-443` rule (port `443`, priority `330`)
 was also added in the same portal visit — that belongs to the HTTPS work, not this plan, and is
 recorded here only because it is present in the NSG.
+
+### 2026-10-08 — Task 5 (restart test) — COMPLETE
+
+The VM was restarted (not stopped) and the site came back with nobody logged in.
+
+| Check | Result |
+|---|---|
+| Last boot | `2026-10-08 05:09:21 UTC` |
+| `career-platform` active since | `2026-10-08 05:09:30 UTC` — 9 seconds after boot |
+| `nginx` active since | `2026-10-08 05:09:30 UTC` — 9 seconds after boot |
+| Both services | `active`, `enabled` |
+| Listening after reboot | `0.0.0.0:80`, `0.0.0.0:443`, `127.0.0.1:8000` |
+| `https://dhwanijain.me` from the laptop | `200`, correct page title |
+| `http://dhwanijain.me` | `301` → `https://dhwanijain.me/` |
+| Certificate after reboot | `CN=dhwanijain.me`, unchanged validity dates |
+| App content through Nginx | real data present |
+
+Both services started **9 seconds after boot**, which is the evidence that systemd started them
+rather than a person. Nobody logged in between the restart and the first successful request.
+
+Two things worth recording because they could mislead someone repeating this test.
+
+First, `az vm restart --no-wait` returns immediately and the shutdown takes 30-45 seconds to
+begin. Polling the public URL right after issuing the command returned `200` from a machine that
+had not yet rebooted, which looks like a passing test but proves nothing. The reliable signal is
+`uptime -s` changing, not the site answering.
+
+Second, `curl http://localhost` on the VM now returns `404` rather than the page. That is correct.
+Certbot rewrote the site so the port 80 block matches `dhwanijain.me` and `www.dhwanijain.me`
+only, and a request carrying `Host: localhost` matches no server name. Before HTTPS was added the
+single block was also the default server, so it answered to any name. The app itself is fine:
+`curl http://127.0.0.1:8000` and an HTTPS request carrying the real Host both return the page.
