@@ -36,11 +36,14 @@ I checked this two ways, because they prove two different things.
 **The timer is scheduled.**
 
 ```
-timer enabled: enabled
-NEXT: Thu 2026-10-08 04:19:18 UTC    LAST: Wed 2026-10-07 15:00:38 UTC
+$ systemctl list-timers | grep certbot
+
+Thu 2026-10-08 22:16:49 UTC  17h  Thu 2026-10-08 04:19:28 UTC  39min ago  certbot.timer  certbot.service
 ```
 
-That tells me renewal will run, even after a reboot. It doesn't tell me it would work.
+The columns are next run, time until it, last run, time since it, then the timer and the service
+it starts. It last fired 39 minutes before I ran this and is already scheduled to go again. That
+tells me renewal will run, even after a reboot. It doesn't tell me it would work.
 
 **The dry run works.**
 
@@ -61,7 +64,7 @@ the timer says renewal will fire and the dry run says it'll succeed when it does
 
 | Port | Open to | Why it's open |
 |---|---|---|
-| 22 (SSH) | Only my laptop | This is how I administer the VM. The NSG rule is a single `/32` pinned to my laptop's public address, so everyone else gets dropped before they ever reach the machine. Password login is off too, so only my ed25519 key works. |
+| 22 (SSH) | Only my laptop | This is how I administer the VM. The NSG rule is a single `/32` pinned to my laptop's public address, so everyone else gets dropped before they ever reach the machine. Password login is off too, so only my ed25519 key works — `sudo sshd -T` reports `passwordauthentication no` and `pubkeyauthentication yes`. |
 | 80 (HTTP) | Anyone | Let's Encrypt's HTTP-01 challenge grabs a token over port 80 to prove I control the domain, so I can't close this and still have certificates. It also serves the 301 that sends every visitor to HTTPS. |
 | 443 (HTTPS) | Anyone | This is where people actually read the site, encrypted. |
 | 8000 | Nobody | Uvicorn listens on `127.0.0.1:8000`. That's the loopback address, so it only takes connections from the VM itself. There's no firewall rule for 8000 and there doesn't need to be. |
