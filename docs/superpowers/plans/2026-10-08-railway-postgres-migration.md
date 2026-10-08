@@ -114,7 +114,7 @@ U="$PGURL" uv run --with 'psycopg[binary]' python -c 'import os,psycopg; print(p
 
 Record the major version as `<PG_MAJOR>`. If `DATABASE_PUBLIC_URL` is missing, the Postgres service has no TCP proxy. **Owner:** enable it under Postgres → Settings → Networking → TCP Proxy.
 
-- [ ] **Step 5: Start the local test database**
+- [x] **Step 5: Start the local test database**
 
 **Owner:** open Docker Desktop. Then:
 
@@ -150,7 +150,7 @@ git commit -m "docs: record Railway preflight findings"
   - `app.db.CONNECT_TIMEOUT: int = 3`
   - Fixtures: `pg_url` (wiped local DB URL), `empty_db` (schema applied, returns URL), `db` (schema + known profile, returns URL), `sqlite_source` (path to a SQLite file in the old schema with known rows).
 
-- [ ] **Step 1: Add the dependency**
+- [x] **Step 1: Add the dependency**
 
 ```bash
 uv add 'psycopg[binary]'
@@ -171,7 +171,7 @@ dependencies = [
 
 Then add the identical line `psycopg[binary]==3.2.10` (same version) to `requirements.txt`, and run `uv lock`.
 
-- [ ] **Step 2: Keep the old SQLite schema for the copy tests**
+- [x] **Step 2: Keep the old SQLite schema for the copy tests**
 
 ```bash
 mkdir -p tests/fixtures
@@ -185,7 +185,7 @@ Add one line to the top of `tests/fixtures/sqlite_schema.sql`:
 -- as the source side of tests/test_copy.py. The live schema is app/schema.sql.
 ```
 
-- [ ] **Step 3: Write the failing tests**
+- [x] **Step 3: Write the failing tests**
 
 `tests/conftest.py`:
 
@@ -375,12 +375,12 @@ def test_current_role_cannot_have_an_end_date(db):
         )
 ```
 
-- [ ] **Step 4: Run them to verify they fail**
+- [x] **Step 4: Run them to verify they fail**
 
 Run: `uv run pytest tests/test_db.py -v`
 Expected: collection error, `ImportError: cannot import name 'DatabaseNotConfigured' from 'app.db'`.
 
-- [ ] **Step 5: Write the Postgres schema**
+- [x] **Step 5: Write the Postgres schema**
 
 `app/schema.sql`:
 
@@ -580,7 +580,7 @@ CREATE INDEX IF NOT EXISTS idx_proj_highlight      ON project_highlight (project
 CREATE INDEX IF NOT EXISTS idx_entity_tag_lookup   ON entity_tag (entity_type, entity_id);
 ```
 
-- [ ] **Step 6: Write `app/db.py` and the config default**
+- [x] **Step 6: Write `app/db.py` and the config default**
 
 `app/config.py`: change the last line to
 
@@ -637,12 +637,12 @@ APP_ENV=development
 DATABASE_URL=postgresql://postgres:test@localhost:54329/career_dev
 ```
 
-- [ ] **Step 7: Run the tests to verify they pass**
+- [x] **Step 7: Run the tests to verify they pass**
 
 Run: `uv run pytest tests/test_db.py -v`
 Expected: 7 passed. (`tests/test_repository.py` still fails at this point. Task 2 fixes it.)
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add app/config.py app/db.py app/schema.sql tests/conftest.py tests/test_db.py tests/fixtures/sqlite_schema.sql pyproject.toml requirements.txt uv.lock .env.example
@@ -660,7 +660,7 @@ git commit -m "feat: move the schema and connection layer to PostgreSQL"
 - Consumes: `connect`, `DatabaseNotConfigured` and the `db` fixture from Task 1.
 - Produces: `load_profile(database_url: str | None = None, snapshot_path: Path | None = None) -> tuple[dict, str]`. The first parameter **replaces** `db_path`, and `app/main.py` calls it with no arguments, so `main.py` is unchanged. `format_month` and `format_date_range` accept `date | str | None`.
 
-- [ ] **Step 1: Port the existing tests and add the Review Focus tests**
+- [x] **Step 1: Port the existing tests and add the Review Focus tests**
 
 In `tests/test_repository.py`, replace every `db_path=db` with `database_url=db`. Then replace the three fallback tests that use `tmp_path / "gone.db"` and the final unwritable-snapshot test with the versions below, and append the new tests:
 
@@ -736,12 +736,12 @@ def test_date_objects_format_like_strings():
     assert repository.format_date_range(date(2025, 6, 1), date(2025, 8, 1), False) == "Jun 2025 – Aug 2025"
 ```
 
-- [ ] **Step 2: Run them to verify they fail**
+- [x] **Step 2: Run them to verify they fail**
 
 Run: `uv run pytest tests/test_repository.py -v`
 Expected: FAIL. Calls error with `TypeError: load_profile() got an unexpected keyword argument 'database_url'`.
 
-- [ ] **Step 3: Port `app/repository.py`**
+- [x] **Step 3: Port `app/repository.py`**
 
 Change the module docstring's first line to `"""Read the public profile out of PostgreSQL, with a snapshot fallback.`. Replace the imports through `SNAPSHOT_PATH` with:
 
@@ -941,12 +941,12 @@ def load_profile(
     return data, "live"
 ```
 
-- [ ] **Step 4: Run all tests to verify they pass**
+- [x] **Step 4: Run all tests to verify they pass**
 
 Run: `uv run pytest -v`
 Expected: everything in `tests/test_db.py` and `tests/test_repository.py` passes.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/repository.py tests/test_repository.py
@@ -965,7 +965,7 @@ git commit -m "feat: read the public profile from PostgreSQL"
 - Consumes: `connect`, `init_schema`, the `empty_db` fixture, and `load_profile(database_url=…)`.
 - Produces: `scripts.seed_resume.seed(conn: psycopg.Connection) -> dict[str, int]`, unchanged in shape.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/test_seed.py`:
 
@@ -1004,12 +1004,12 @@ def test_seeded_page_renders_and_hides_the_phone(empty_db, tmp_path):
     assert "phone" not in [c["type"] for c in data["contacts"]]
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `uv run pytest tests/test_seed.py -v`
 Expected: FAIL with `psycopg.errors.SyntaxError` at or near `?`.
 
-- [ ] **Step 3: Port `scripts/seed_resume.py`**
+- [x] **Step 3: Port `scripts/seed_resume.py`**
 
 Leave the data constants unchanged. Replace `seed()` and `main()`, and change the import line to `from app.db import connect, init_schema`:
 
@@ -1131,7 +1131,7 @@ def main() -> None:
         print(f"  {table:<22} {n}")
 ```
 
-- [ ] **Step 4: Port `scripts/init_db.py`**
+- [x] **Step 4: Port `scripts/init_db.py`**
 
 ```python
 """Create (or re-apply) the Career Platform schema. Runs before every Railway deploy.
@@ -1162,7 +1162,7 @@ if __name__ == "__main__":
     main()
 ```
 
-- [ ] **Step 5: Run all tests, then smoke-test the page locally**
+- [x] **Step 5: Run all tests, then smoke-test the page locally**
 
 Run: `uv run pytest -v` → all pass.
 
@@ -1177,7 +1177,7 @@ sleep 2; curl -s localhost:8765/ | grep -c "HUM Nutrition"; curl -s localhost:87
 
 Expected: `1` or greater for HUM Nutrition, `0` for the banner. Never copy `.env.example` over `.env`, because the owner's `.env` may hold other values. `load_dotenv` never overrides an exported variable, so the `export` is enough.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add scripts/init_db.py scripts/seed_resume.py tests/test_seed.py
@@ -1195,7 +1195,7 @@ git commit -m "feat: port schema and seed scripts to PostgreSQL"
 - Consumes: the `sqlite_source` and `empty_db` fixtures, plus `connect` and `init_schema`.
 - Produces: `copy_database(sqlite_path: Path, conn: psycopg.Connection) -> dict[str, int]` and `TargetNotEmpty(RuntimeError)`. The CLI is `python -m scripts.copy_sqlite_to_postgres <sqlite_path>`, with the target taken from `DATABASE_URL`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `tests/test_copy.py`:
 
@@ -1261,12 +1261,12 @@ def test_timestamps_are_read_as_utc(sqlite_source, empty_db):
     assert ts.utcoffset().total_seconds() == 0
 ```
 
-- [ ] **Step 2: Run them to verify they fail**
+- [x] **Step 2: Run them to verify they fail**
 
 Run: `uv run pytest tests/test_copy.py -v`
 Expected: `ModuleNotFoundError: No module named 'scripts.copy_sqlite_to_postgres'`.
 
-- [ ] **Step 3: Write the copy script**
+- [x] **Step 3: Write the copy script**
 
 `scripts/copy_sqlite_to_postgres.py`:
 
@@ -1369,12 +1369,12 @@ if __name__ == "__main__":
     main()
 ```
 
-- [ ] **Step 4: Run all tests to verify they pass**
+- [x] **Step 4: Run all tests to verify they pass**
 
 Run: `uv run pytest -v`
 Expected: all pass.
 
-- [ ] **Step 5: Dry run against the real VM data, locally**
+- [x] **Step 5: Dry run against the real VM data, locally**
 
 ```bash
 SCRATCH=$(mktemp -d)
@@ -1387,7 +1387,7 @@ DATABASE_URL=postgresql://postgres:test@localhost:54329/career_dryrun \
 
 Expected counts match the **Starting State** table exactly: 1, 4, 5, 16, 3, 8, 18, 18, 2, 1, 5, 0, 0, 0. Keep `$SCRATCH/vm-resume.db` for Task 6, and **never** copy it into the repo.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add scripts/copy_sqlite_to_postgres.py tests/test_copy.py
@@ -1406,7 +1406,7 @@ git commit -m "feat: add one-shot SQLite-to-Postgres copy"
 - Consumes: `scripts.init_db` from Task 3.
 - Produces: a deploy that runs `python -m scripts.init_db` before each release and serves on `$PORT`, with `/health` as the readiness check.
 
-- [ ] **Step 1: Write `railway.json`**
+- [x] **Step 1: Write `railway.json`**
 
 ```json
 {
@@ -1427,7 +1427,7 @@ git commit -m "feat: add one-shot SQLite-to-Postgres copy"
 
 `sh -c` makes `$PORT` expand whether or not Railway wraps the command in a shell. `--workers 2` matches the VM. No `--proxy-headers` is needed, because the template links assets by absolute path (`/static/...`) and never builds URLs from the request scheme.
 
-- [ ] **Step 2: Document local development in `README.md`**
+- [x] **Step 2: Document local development in `README.md`**
 
 ```markdown
 # career-platform
@@ -1454,7 +1454,7 @@ above) and refuse to run against any non-local host.
 
 Replace `<PG_MAJOR>` with the version recorded in Task 0.
 
-- [ ] **Step 3: Validate the JSON and run the full suite**
+- [x] **Step 3: Validate the JSON and run the full suite**
 
 ```bash
 python3 -m json.tool railway.json > /dev/null && echo valid
@@ -1463,7 +1463,7 @@ uv run pytest -q
 
 Expected: `valid`, then all tests pass.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add railway.json README.md
@@ -1671,10 +1671,22 @@ _Filled in during Task 0._
 |---|---|
 | `<PG_SERVICE>` | |
 | `<WEB_SERVICE>` | |
-| `<PG_MAJOR>` | |
+| `<PG_MAJOR>` | 17 is assumed for the local test container only (PostgreSQL 17.11). Railway's version is not yet checked; Step 4 is still open |
 | Deploy source | |
 | `<RAILWAY_HOST>` | |
 
 ## Execution Log
 
 _Append a dated entry as each task completes: what was verified, what deviated from the plan, and any blockers._
+
+### 2026-10-08: Tasks 1–5 (code), plus Task 0 Step 5. COMPLETE on branch `railway-postgres`
+
+- **Scope set by the owner:** code tasks only, commit and push, no Railway changes. Task 0 Steps 1–4 and 6 and Tasks 6–9 are untouched.
+- **Branch:** the work is pushed to `railway-postgres`, not `main`. It's unknown whether the Railway web service auto-deploys from `main`, and the owner ruled out Railway changes.
+- **Version:** `psycopg[binary]` resolved to **3.3.6** and is pinned in `pyproject.toml` and `requirements.txt`.
+- **Tests:** `uv run pytest` gives 38 passed against local `postgres:17` (17.11) on port 54329.
+- **Dry run:** the VM's live `resume.db` was copied into a local throwaway database. Counts matched the Starting State exactly (1/4/5/16/3/8/18/18/2/1/5/0/0/0). `load_profile` returned `live Dhwani Jain 5 ['email','linkedin','github']`.
+- **Local smoke test:** the seeded page showed "HUM Nutrition", no fallback banner, and no phone number.
+- **Deviation:** Task 3 Step 5 originally said `cp .env.example .env`. That overwrote the owner's local `.env`, which held other values. The step now uses `export DATABASE_URL`, and the README does the same.
+- **Unverified until a deploy:** that Railpack puts the project venv on `PATH`, so `python -m scripts.init_db` and `uvicorn` in `railway.json` resolve.
+- **Deferred:** `app/main.py`'s `home` is `async def` but calls the now-networked `load_profile()` synchronously. A slow database blocks that worker's event loop for up to `CONNECT_TIMEOUT` (3 s). Making it a plain `def` lets FastAPI run it in the threadpool.
