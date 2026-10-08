@@ -1480,13 +1480,13 @@ git commit -m "build: add Railway deploy configuration"
 - Consumes: `$SCRATCH/vm-resume.db` from Task 4 Step 5 and `<PG_SERVICE>` from Task 0.
 - Produces: Railway Postgres holding the same rows as the VM.
 
-- [ ] **Step 1: Re-fetch the VM database so it's current**
+- [x] **Step 1: Re-fetch the VM database so it's current**
 
 ```bash
 scp career-vm:career-platform/data/resume.db "$SCRATCH/vm-resume.db"
 ```
 
-- [ ] **Step 2: Copy into Railway Postgres (owner approval required)**
+- [x] **Step 2: Copy into Railway Postgres (owner approval required)**
 
 ```bash
 PGURL=$(railway variables --service <PG_SERVICE> --kv | sed -n 's/^DATABASE_PUBLIC_URL=//p')
@@ -1495,7 +1495,7 @@ DATABASE_URL="$PGURL" uv run python -m scripts.copy_sqlite_to_postgres "$SCRATCH
 
 Expected: `Copied into <proxy host>/railway`, followed by the same counts as the Starting State table. If it raises `TargetNotEmpty`, the database was already loaded. Stop and ask the owner rather than wiping it.
 
-- [ ] **Step 3: Verify the page renders from Railway's database, before deploying anything**
+- [x] **Step 3: Verify the page renders from Railway's database, before deploying anything**
 
 ```bash
 DATABASE_URL="$PGURL" uv run python -c '
@@ -1507,7 +1507,7 @@ print(s, d["profile"]["full_name"], len(d["experience"]), [c["type"] for c in d[
 
 Expected: `live Dhwani Jain 5 ['email', 'linkedin', 'github']`. That means live data with no phone. The `/dev/null/x` path makes the snapshot write fail on purpose, so no file gets created in the repo.
 
-- [ ] **Step 4: Record the outcome in the Execution Log and commit the plan**
+- [x] **Step 4: Record the outcome in the Execution Log and commit the plan**
 
 ---
 
@@ -1671,7 +1671,7 @@ _Filled in during Task 0._
 |---|---|
 | `<PG_SERVICE>` | |
 | `<WEB_SERVICE>` | |
-| `<PG_MAJOR>` | 17 is assumed for the local test container only (PostgreSQL 17.11). Railway's version is not yet checked; Step 4 is still open |
+| `<PG_MAJOR>` | **18**. Railway runs PostgreSQL 18.6. Local tests ran on 17.11; re-run them on `postgres:18` before relying on that |
 | Deploy source | |
 | `<RAILWAY_HOST>` | |
 
@@ -1690,3 +1690,12 @@ _Append a dated entry as each task completes: what was verified, what deviated f
 - **Deviation:** Task 3 Step 5 originally said `cp .env.example .env`. That overwrote the owner's local `.env`, which held other values. The step now uses `export DATABASE_URL`, and the README does the same.
 - **Unverified until a deploy:** that Railpack puts the project venv on `PATH`, so `python -m scripts.init_db` and `uvicorn` in `railway.json` resolve.
 - **Deferred:** `app/main.py`'s `home` is `async def` but calls the now-networked `load_profile()` synchronously. A slow database blocks that worker's event loop for up to `CONNECT_TIMEOUT` (3 s). Making it a plain `def` lets FastAPI run it in the threadpool.
+
+### 2026-10-08: Task 6 (load the live data into Railway Postgres). COMPLETE
+
+- **Source:** the VM backup `~/backups/resume-20261008T214908Z.db`, made with SQLite `.backup`. Its integrity check returned `ok`. The laptop copy's SHA-256 matched the VM's.
+- **Deviation:** the target URL was read from `RAILWAY_DATABASE_URL` in the owner's local `.env` (Railway's `DATABASE_PUBLIC_URL`), not through the Railway CLI, which isn't installed. The URL was never printed.
+- **Before the copy:** Railway Postgres was **18.6** with an empty `public` schema, so no deploy had run its pre-deploy step yet.
+- **Copy:** `scripts.copy_sqlite_to_postgres` gave 1/4/5/16/3/8/18/18/2/1/5/0/0/0.
+- **Comparison:** a scratchpad script compared every table, row by row and column by column. Booleans were mapped to 0/1, dates to ISO strings and timestamps to UTC text. It ran against both the backup and a fresh `.backup` of the VM's live `resume.db`. The result was **14/14 tables identical** for both, with matching per-table content hashes.
+- **Page read:** `load_profile` against Railway returned `live Dhwani Jain 5 ['email','linkedin','github']`, with HUM Nutrition shown as "Jun 2026 – Present".
