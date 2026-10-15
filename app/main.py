@@ -9,7 +9,9 @@ from starlette.responses import HTMLResponse
 from app.config import APP_NAME
 from app.repository import load_profile
 
-app = FastAPI(title=APP_NAME)
+# No auto-generated /docs, /redoc or /openapi.json: every HTML page this app
+# serves comes from a template built on base.html, which carries the Google tag.
+app = FastAPI(title=APP_NAME, docs_url=None, redoc_url=None, openapi_url=None)
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
