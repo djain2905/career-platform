@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}{{ data.profile.full_name }}{% endblock %}</title>
+    {% block meta %}{% endblock %}
+    <link rel="stylesheet" href="/static/css/styles.css" />
+    {% block head_extra %}{% endblock %}
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    {% block body %}{% endblock %}
+
+    <footer class="wrap">
+      <p>{{ data.profile.full_name }}{% if data.contacts %} ·
+        {% for c in data.contacts %}<a href="{{ c.url }}"{% if c.url.startswith('http') %} rel="noopener noreferrer"{% endif %}>{{ c.label }}</a> · {% endfor %}
+      {% else %} · {% endif %}<a href="/privacy">Privacy</a></p>
+    </footer>
+    {% block scripts %}{% endblock %}
+  </body>
+</html>

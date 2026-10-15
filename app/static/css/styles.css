@@ -296,6 +296,16 @@ footer {
 
 footer a { min-height: 44px; display: inline-flex; align-items: center; }
 
+/* --- privacy page ------------------------------------------------- */
+.privacy { padding-block: 2rem 1rem; }
+.privacy h1 { margin: 0.5rem 0 0.25rem; font-size: clamp(1.8rem, 4vw, 2.4rem); }
+.privacy section { padding-block: 2rem; }
+.privacy h3 { margin: 1.5rem 0 0.5rem; font-size: 1rem; }
+.privacy section > h2 + h3 { margin-top: 0; }
+.privacy p { max-width: var(--measure); }
+.privacy code { font-size: 0.9em; }
+.privacy .back { margin: 0; font-size: 0.92rem; }
+
 @media (max-width: 600px) {
   .entry-head { flex-direction: column; align-items: flex-start; gap: 0.2rem; }
   .dates { white-space: normal; }

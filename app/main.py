@@ -27,3 +27,12 @@ async def home(request: Request):
         "index.html",
         {"request": request, "app_name": APP_NAME, "data": data, "source": source},
     )
+
+
+@app.get("/privacy", response_class=HTMLResponse)
+async def privacy(request: Request):
+    data, source = load_profile()
+    return templates.TemplateResponse(
+        "privacy.html",
+        {"request": request, "app_name": APP_NAME, "data": data, "source": source},
+    )

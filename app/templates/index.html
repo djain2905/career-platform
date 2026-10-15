@@ -1,14 +1,12 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{{ data.profile.full_name }} — {{ data.profile.headline }}</title>
+{% extends "base.html" %}
+{% block title %}{{ data.profile.full_name }} — {{ data.profile.headline }}{% endblock %}
+{% block meta %}
     <meta name="description" content="{{ data.profile.full_name }} — {{ data.profile.headline }}{% if data.profile.location %}. Based in {{ data.profile.location }}{% endif %}." />
     <meta property="og:title" content="{{ data.profile.full_name }}" />
     <meta property="og:description" content="{{ data.profile.headline }}" />
     <meta property="og:type" content="profile" />
-    <link rel="stylesheet" href="/static/css/styles.css" />
+{% endblock %}
+{% block head_extra %}
     {% set profile_urls = [] %}
     {% for c in data.contacts %}{% if c.url and c.url.startswith('http') %}{% set _ = profile_urls.append(c.url) %}{% endif %}{% endfor %}
     <script type="application/ld+json">
@@ -21,9 +19,8 @@
         "sameAs": profile_urls
       } | tojson }}
     </script>
-  </head>
-  <body>
-    <a class="skip-link" href="#main">Skip to content</a>
+{% endblock %}
+{% block body %}
     {% if source != "live" %}
     <p class="cache-note" role="status">
       Showing saved content{% if source == "minimal" %} — some sections are temporarily unavailable{% endif %}.
@@ -149,12 +146,8 @@
       </section>
       {% endif %}
     </main>
-
-    <footer class="wrap">
-      <p>{{ data.profile.full_name }}{% if data.contacts %} ·
-        {% for c in data.contacts %}<a href="{{ c.url }}"{% if c.url.startswith('http') %} rel="noopener noreferrer"{% endif %}>{{ c.label }}</a>{% if not loop.last %} · {% endif %}{% endfor %}
-      {% endif %}</p>
-    </footer>
+{% endblock %}
+{% block scripts %}
     <script>
       (function () {
         var links = document.querySelectorAll(".sticky-nav a");
@@ -177,5 +170,4 @@
         });
       })();
     </script>
-  </body>
-</html>
+{% endblock %}

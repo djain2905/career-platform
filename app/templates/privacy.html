@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Privacy — {{ data.profile.full_name }}{% endblock %}
+{% block meta %}
+    <meta name="description" content="What this site collects about visitors, why, who receives it, and your choices." />
+{% endblock %}
+{% block body %}
+    <main class="wrap privacy" id="main">
+      <p class="back"><a href="/">← Back to {{ data.profile.full_name }}</a></p>
+      <h1>Privacy</h1>
+      <p class="note">Last updated October 15, 2026</p>
+
+      <section aria-labelledby="h-short">
+        <h2 id="h-short">The short version</h2>
+        <p>This is my personal résumé site. It has no accounts, no forms and no comments, and it doesn't ask you for anything. I use Google Analytics to count page views and to see which outside links people click, such as GitHub or LinkedIn. Google Analytics sets cookies in your browser as soon as the page loads. There is no cookie banner. Every part of the site works if you block Google Analytics.</p>
+      </section>
+
+      <section aria-labelledby="h-collected">
+        <h2 id="h-collected">What is collected</h2>
+        <h3>By Google Analytics</h3>
+        <p>When a page loads, your browser sends Google:</p>
+        <ul class="bullets">
+          <li>the page address and title, and the page you came from (the referrer)</li>
+          <li>browser, operating system, device type, screen size and language</li>
+          <li>a random ID stored in a cookie, so repeat visits from the same browser can be grouped</li>
+          <li>when you visited and how long the page was open</li>
+          <li>your IP address. Google says Google Analytics uses it to estimate your city and country and does not store it.</li>
+        </ul>
+        <p>When you click a link to another website, Google also receives that link's address and domain.</p>
+        {# VERIFY: true only after Admin > Data streams > Enhanced measurement has every option except
+           page views and outbound clicks turned off (scrolls, site search, form interactions, video
+           engagement and file downloads are on by default). #}
+        <p>Analytics is set up to record page views and outbound link clicks only. It does not record scrolling, searches, form use, video plays or downloads.</p>
+        <p>The cookies are <code>_ga</code> and <code>_ga_V64QT2T9EG</code>. Each lasts up to two years and is renewed on every visit.</p>
+
+        <h3>By the hosting provider</h3>
+        <p>The site runs on <a href="https://railway.com/legal/privacy" rel="noopener noreferrer">Railway</a>. Like any web server, Railway's servers receive your IP address, the page you asked for and your browser type with every request, and may record them in server logs. I can see those logs. I use them only to fix problems, not to identify visitors. Railway decides how long the logs are kept.</p>
+
+        <h3>Not collected</h3>
+        <p>The site has no sign-up, contact form or newsletter. Its database holds my own résumé content and nothing about visitors. The site sets no cookies of its own.</p>
+        <p>If you email me through the Email link, your message goes to my inbox like any other email. That's separate from this site.</p>
+      </section>
+
+      <section aria-labelledby="h-why">
+        <h2 id="h-why">Why</h2>
+        <p>To find out whether anyone visits, which pages they view and which outside links they follow. For example, it shows whether people click through to my GitHub projects. Analytics can't tell me who you are or why you clicked. I don't use it for advertising.</p>
+      </section>
+
+      <section aria-labelledby="h-who">
+        <h2 id="h-who">Who receives it</h2>
+        <ul class="bullets">
+          <li><strong>Google</strong> receives the analytics data and processes it on its servers, which may be outside your country. See <a href="https://policies.google.com/technologies/partner-sites" rel="noopener noreferrer">how Google uses information from sites that use its services</a>.</li>
+          <li><strong>Railway</strong> hosts the site and handles every request.</li>
+          <li><strong>Me.</strong> I see Google Analytics reports, which show totals and trends, not names.</li>
+        </ul>
+        {# VERIFY: true only after Admin > Data collection has Google signals OFF, and Admin > Account
+           settings > Data sharing settings has "Google products & services" OFF. #}
+        <p>I have turned off Google signals and the setting that shares this site's analytics data with other Google products. I don't sell or share the data with anyone else.</p>
+        {# VERIFY: true only after Admin > Data collection and modification > Data retention > Event data
+           retention is set to 2 months. #}
+        <p>Detailed analytics data is deleted after two months. Summary reports, such as monthly visit totals, stay in Google Analytics.</p>
+      </section>
+
+      <section aria-labelledby="h-choices">
+        <h2 id="h-choices">Your choices</h2>
+        <ul class="bullets">
+          <li><strong>Block it.</strong> A content or tracker blocker, or your browser's tracking protection, will usually stop Google Analytics. The site works the same without it.</li>
+          <li><strong>Google's opt-out add-on.</strong> The <a href="https://tools.google.com/dlpage/gaoptout" rel="noopener noreferrer">Google Analytics Opt-out Browser Add-on</a> stops Google Analytics on every site, in browsers that support it.</li>
+          <li><strong>Clear or block cookies.</strong> Deleting the <code>_ga</code> cookies resets the random ID. Blocking cookies for this site stops new ones being set.</li>
+        </ul>
+        <p>There is no consent banner, and analytics starts when the page loads. The site doesn't change its behavior for Do Not Track or Global Privacy Control signals. Your browser or an extension may still block analytics when those are on.</p>
+        <p>Analytics data is tied to a random ID, not your name, so I can't look you up. If you want your analytics data removed, email me the value of your <code>_ga</code> cookie and I'll delete the matching data in Google Analytics.</p>
+      </section>
+
+      <section aria-labelledby="h-contact">
+        <h2 id="h-contact">Questions</h2>
+        <p>Email <a href="mailto:dhwanijain2905@gmail.com">dhwanijain2905@gmail.com</a>. If this setup changes, I'll update this page and its date.</p>
+      </section>
+    </main>
+{% endblock %}
