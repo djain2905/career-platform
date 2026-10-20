@@ -1,0 +1,76 @@
+---
+title: "What happens when I enter dhwanijain.me and press Enter (Railway, with Azure changes)"
+---
+flowchart LR
+  ASSUME["<b>Assumptions</b><br/>no cached DNS answer<br/>typed dhwanijain.me → browser tries http,<br/>gets 301 to https, follows it<br/><br/><b>① Browser parses the URL</b><br/>scheme http · host dhwanijain.me<br/>port 80 · path /"]
+
+  subgraph HOME["MY SIDE · at home AP + switch + router are one box, on campus they are separate"]
+    direction TB
+    LAP["<b>Laptop</b><br/>browser · OS resolver · Wi-Fi card<br/>DHCP gave: private IP, subnet mask,<br/>default gateway, DNS server"]
+    AP["<b>Access point</b>"]
+    SW["<b>Switch</b><br/>connects devices on the LAN"]
+    RT["<b>Router</b> = default gateway<br/>NAT: private source IP → public IP,<br/>maps the reply back<br/>stateful firewall lets the reply in"]
+    MOD["<b>Modem / ONT</b>"]
+    LAP ---|Wi-Fi| AP
+    AP --- SW
+    SW --- RT
+    RT --- MOD
+  end
+
+  subgraph NET["INTERNET"]
+    direction TB
+    ISP["<b>ISP</b><br/>name: unknown"]
+    IR["<b>Internet routers</b><br/>forward hop by hop by IP"]
+    ISP --- IR
+  end
+
+  subgraph DNSG["② DNS · a separate exchange, finished before the web request"]
+    direction TB
+    RES["<b>Recursive resolver</b><br/>location: check with scutil --dns"]
+    ROOT["Root servers"]
+    TLD[".me servers"]
+    CF["<b>Cloudflare</b>, authoritative<br/>@ CNAME 8udvcs1q.up.railway.app<br/>flattened → Railway edge A records"]
+    RES -.->|"referral"| ROOT
+    RES -.->|"referral"| TLD
+    RES -.->|"answer"| CF
+  end
+
+  subgraph RW["RAILWAY (host I draw fully)"]
+    direction TB
+    EDGE["<b>Railway edge</b><br/>public IP · :80 and :443<br/>holds the certificate<br/><b>TLS ENDS HERE</b>"]
+    APP["<b>Container</b><br/>Uvicorn, 2 workers, on $PORT<br/>FastAPI home → load_profile → Jinja"]
+    PG[("<b>PostgreSQL</b> :5432<br/>Railway private network")]
+    EDGE -->|"⑦ plain HTTP on $PORT · private<br/>X-Forwarded-Proto: https<br/>C: edge · S: Uvicorn"| APP
+    APP -->|"⑧ SQL over TCP 5432<br/>private DATABASE_URL<br/>C: app · S: Postgres"| PG
+  end
+
+  GOOG["<b>Google</b><br/>googletagmanager.com · google-analytics.com"]
+
+  subgraph AZ["WHAT CHANGES ON AZURE"]
+    direction TB
+    AZDNS["DNS answer: @ A 4.155.216.147<br/>(not a flattened CNAME)"]
+    NSG["<b>NSG</b> firewall<br/>80, 443 from any · 22 only from my laptop /32<br/>8000: no rule"]
+    PIP["Public IP 4.155.216.147 (Azure holds it)<br/>→ VM private IP 172.16.0.4"]
+    NGX["<b>Nginx</b> :443 · Certbot / Let's Encrypt cert<br/><b>TLS ENDS HERE</b>"]
+    UV["<b>Uvicorn</b> 127.0.0.1:8000<br/>2 workers · systemd"]
+    DB[("<b>SQLite file</b><br/>data/resume.db")]
+    AZDNS ~~~ NSG
+    NSG --> PIP --> NGX
+    NGX -->|"plain HTTP over loopback"| UV
+    UV -->|"file read, no network"| DB
+  end
+
+  ASSUME ~~~ LAP
+  MOD --- ISP
+  LAP -.->|"② DNS query, UDP 53<br/>C: laptop · S: resolver<br/>(crosses the same hardware)"| RES
+  IR ==>|"③ HTTP :80 → 301 to https<br/>④ TCP handshake to :443<br/>⑤ TLS: SNI, cert name/dates/chain → keys<br/>⑥ GET / · Host: dhwanijain.me (encrypted)<br/>C: laptop · S: Railway edge"| EDGE
+  EDGE ==>|"⑨ 200 + HTML, re-encrypted<br/>same path back · router un-NATs it"| IR
+  LAP -->|"⑩ further requests: CSS from the edge (same connection)<br/>gtag.js + page_view hit to Google (new DNS, TCP, TLS)"| GOOG
+  RW ~~~ AZ
+
+  classDef dns fill:#eef4ff,stroke:#4a6fb5
+  classDef tls fill:#fff4e0,stroke:#c98a1b
+  classDef az fill:#f3f3f3,stroke:#888
+  class RES,ROOT,TLD,CF dns
+  class EDGE,NGX tls
+  class AZDNS,NSG,PIP,UV,DB az
