@@ -22,12 +22,18 @@ def healthcheck() -> dict[str, str]:
     return {"status": "ok", "app": APP_NAME}
 
 
+# Plain `def`, not `async def`: load_profile() blocks on the database, so
+# FastAPI runs it in its threadpool instead of stalling the event loop.
 @app.get("/", response_class=HTMLResponse)
-async def home(request: Request):
+def home(request: Request):
     data, source = load_profile()
+    # The profile still renders from saved content when the database is down,
+    # but projects don't, so the response says so: 503 until the next healthy
+    # read, which needs no restart because every request tries the database.
     return templates.TemplateResponse(
         "index.html",
         {"request": request, "app_name": APP_NAME, "data": data, "source": source},
+        status_code=200 if source == "live" else 503,
     )
 
 

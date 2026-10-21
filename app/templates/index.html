@@ -48,7 +48,7 @@
     <nav class="sticky-nav" aria-label="Sections">
       <div class="wrap nav-inner">
         {% if data.experience %}<a href="#experience">Experience</a>{% endif %}
-        {% if data.projects %}<a href="#projects">Projects</a>{% endif %}
+        <a href="#projects">Projects</a>
         {% if data.skills %}<a href="#skills">Skills</a>{% endif %}
         {% if data.education %}<a href="#education">Education</a>{% endif %}
         {% if data.achievements %}<a href="#achievements">Awards &amp; Leadership</a>{% endif %}
@@ -76,9 +76,13 @@
       </section>
       {% endif %}
 
-      {% if data.projects %}
       <section id="projects" aria-labelledby="h-projects">
         <h2 id="h-projects">Projects</h2>
+        {% if data.projects_unavailable %}
+        <p class="note" role="status">Projects temporarily unavailable. Please try again shortly.</p>
+        {% elif not data.projects %}
+        <p class="note">No projects published yet.</p>
+        {% endif %}
         {% for p in data.projects %}
         <article class="entry">
           <div class="entry-head">
@@ -98,7 +102,6 @@
         </article>
         {% endfor %}
       </section>
-      {% endif %}
 
       {% if data.skills %}
       <section id="skills" aria-labelledby="h-skills">

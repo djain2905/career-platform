@@ -223,9 +223,14 @@ def load_profile(
     except (psycopg.Error, DatabaseNotConfigured, NoProfile, OSError) as exc:
         log.warning("live read failed, serving fallback: %s", exc)
         try:
-            return json.loads(snapshot_path.read_text()), "snapshot"
+            fallback, source = json.loads(snapshot_path.read_text()), "snapshot"
         except (OSError, ValueError):
-            return MINIMAL, "minimal"
+            fallback, source = dict(MINIMAL), "minimal"
+        # The profile may come from saved content, but projects never do: a
+        # failed query must show as unavailable, not be hidden by old entries.
+        fallback["projects"] = []
+        fallback["projects_unavailable"] = True
+        return fallback, source
 
     try:
         _write_snapshot(data, snapshot_path)
