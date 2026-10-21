@@ -63,5 +63,5 @@ From the requirements audit on 2026-10-20 against `95b51b2`. Each line names the
 - [x] Link the investigated failures (`docs/evidence/ex03.md`, `docs/evidence/ex05.md`, marked as simulation) and remaining limitations — `README.md`
 - [x] Short reflection — `README.md`
 - [x] Costs or credits, Railway trial end date, expiry dates, cleanup plans — `README.md`
-- [ ] Add the final commit SHA and links for submission items 1–8 — `docs/project-1-submission.md`
+- [x] Add the final commit SHA and links for submission items 1–8 — `docs/project-1-submission.md`
 - [x] Run `uv run pytest` and record the result — README or `docs/evidence/`

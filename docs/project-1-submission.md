@@ -3,7 +3,8 @@
 **Student:** Dhwani Jain
 **Repository:** https://github.com/djain2905/career-platform
 **Live site:** https://dhwanijain.me/
-**Final commit SHA:** <!-- TODO(Dhwani): fill in after the last commit, then submit the same SHA in Brightspace -->
+**Final commit SHA:** `d8e04f3e32278a93efd588253325c907d7ba5cb6` (all project content). The only later commit adds this line;
+its SHA is the one submitted in Brightspace.
 
 Times are Pacific unless marked UTC. Anything not verified is marked as such.
 
