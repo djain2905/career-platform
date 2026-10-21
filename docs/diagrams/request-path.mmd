@@ -1,76 +1,59 @@
 ---
-title: "What happens when I enter dhwanijain.me and press Enter (Railway, with Azure changes)"
+title: "What happens when I enter dhwanijain.me and press Enter (Railway, then what changes on Azure)"
 ---
-flowchart LR
-  ASSUME["<b>Assumptions</b><br/>no cached DNS answer<br/>typed dhwanijain.me → browser tries http,<br/>gets 301 to https, follows it<br/><br/><b>① Browser parses the URL</b><br/>scheme http · host dhwanijain.me<br/>port 80 · path /"]
+sequenceDiagram
+  participant L as Laptop<br/>browser + OS<br/>Wi-Fi card
+  participant H as Home network<br/>access point · switch<br/>router · modem
+  participant I as ISP +<br/>internet routers
+  participant D as DNS<br/>resolver → root →<br/>.me → Cloudflare
+  participant E as Railway edge<br/>public IP<br/>:80 and :443
+  participant A as App container<br/>Uvicorn, 2 workers<br/>on $PORT
+  participant P as PostgreSQL<br/>:5432, private
+  participant G as Google<br/>Analytics
 
-  subgraph HOME["MY SIDE · at home AP + switch + router are one box, on campus they are separate"]
-    direction TB
-    LAP["<b>Laptop</b><br/>browser · OS resolver · Wi-Fi card<br/>DHCP gave: private IP, subnet mask,<br/>default gateway, DNS server"]
-    AP["<b>Access point</b>"]
-    SW["<b>Switch</b><br/>connects devices on the LAN"]
-    RT["<b>Router</b> = default gateway<br/>NAT: private source IP → public IP,<br/>maps the reply back<br/>stateful firewall lets the reply in"]
-    MOD["<b>Modem / ONT</b>"]
-    LAP ---|Wi-Fi| AP
-    AP --- SW
-    SW --- RT
-    RT --- MOD
+  rect rgb(245, 245, 245)
+    Note over L,G: STEP 1 · START IN THE BROWSER
+    Note over L: Parse the URL<br/>scheme http · host dhwanijain.me<br/>port 80 · path /<br/>Assume: no cached DNS answer
+    Note over L,I: DHCP already gave the laptop: private IP, subnet mask,<br/>default gateway (the router), DNS server
   end
 
-  subgraph NET["INTERNET"]
-    direction TB
-    ISP["<b>ISP</b><br/>name: unknown"]
-    IR["<b>Internet routers</b><br/>forward hop by hop by IP"]
-    ISP --- IR
+  rect rgb(232, 240, 255)
+    Note over L,G: STEP 2 · DNS LOOKUP · separate from the web request · client: laptop, server: resolver
+    L->>D: What is the IP of dhwanijain.me? (UDP 53)
+    Note over D: Resolver asks root → .me → Cloudflare<br/>Cloudflare flattens the CNAME to Railway's A records
+    D-->>L: Railway edge IP address
   end
 
-  subgraph DNSG["② DNS · a separate exchange, finished before the web request"]
-    direction TB
-    RES["<b>Recursive resolver</b><br/>location: check with scutil --dns"]
-    ROOT["Root servers"]
-    TLD[".me servers"]
-    CF["<b>Cloudflare</b>, authoritative<br/>@ CNAME 8udvcs1q.up.railway.app<br/>flattened → Railway edge A records"]
-    RES -.->|"referral"| ROOT
-    RES -.->|"referral"| TLD
-    RES -.->|"answer"| CF
+  rect rgb(255, 244, 224)
+    Note over L,G: STEP 3 · CONNECT · client: laptop, server: Railway edge
+    Note over L,D: Every packet from here on crosses: Wi-Fi → access point → switch → router → modem → ISP → internet routers<br/>Router NAT: private source IP → public IP, maps replies back<br/>Stateful firewall lets the replies back in
+    L->>E: HTTP GET / on port 80
+    E-->>L: 301 redirect to https://dhwanijain.me/ (assumed, unverified)
+    L->>E: TCP handshake on port 443 (SYN, SYN-ACK, ACK)
+    L->>E: TLS hello, SNI = dhwanijain.me
+    E-->>L: Certificate
+    Note over L: Check name, dates, chain<br/>then agree on session keys
   end
 
-  subgraph RW["RAILWAY (host I draw fully)"]
-    direction TB
-    EDGE["<b>Railway edge</b><br/>public IP · :80 and :443<br/>holds the certificate<br/><b>TLS ENDS HERE</b>"]
-    APP["<b>Container</b><br/>Uvicorn, 2 workers, on $PORT<br/>FastAPI home → load_profile → Jinja"]
-    PG[("<b>PostgreSQL</b> :5432<br/>Railway private network")]
-    EDGE -->|"⑦ plain HTTP on $PORT · private<br/>X-Forwarded-Proto: https<br/>C: edge · S: Uvicorn"| APP
-    APP -->|"⑧ SQL over TCP 5432<br/>private DATABASE_URL<br/>C: app · S: Postgres"| PG
+  rect rgb(232, 248, 236)
+    Note over L,G: STEP 4 · THE REQUEST REACHES MY APP
+    L->>E: GET / · Host: dhwanijain.me (encrypted)
+    Note over E: TLS ENDS HERE
+    E->>A: Plain HTTP on $PORT (private) · client: edge, server: Uvicorn
+    A->>P: SQL query over private DATABASE_URL · client: app, server: Postgres
+    P-->>A: Profile and project rows
+    Note over A: FastAPI + Jinja render the HTML
   end
 
-  GOOG["<b>Google</b><br/>googletagmanager.com · google-analytics.com"]
-
-  subgraph AZ["WHAT CHANGES ON AZURE"]
-    direction TB
-    AZDNS["DNS answer: @ A 4.155.216.147<br/>(not a flattened CNAME)"]
-    NSG["<b>NSG</b> firewall<br/>80, 443 from any · 22 only from my laptop /32<br/>8000: no rule"]
-    PIP["Public IP 4.155.216.147 (Azure holds it)<br/>→ VM private IP 172.16.0.4"]
-    NGX["<b>Nginx</b> :443 · Certbot / Let's Encrypt cert<br/><b>TLS ENDS HERE</b>"]
-    UV["<b>Uvicorn</b> 127.0.0.1:8000<br/>2 workers · systemd"]
-    DB[("<b>SQLite file</b><br/>data/resume.db")]
-    AZDNS ~~~ NSG
-    NSG --> PIP --> NGX
-    NGX -->|"plain HTTP over loopback"| UV
-    UV -->|"file read, no network"| DB
+  rect rgb(250, 236, 246)
+    Note over L,G: STEP 5 · RESPONSE AND FURTHER REQUESTS
+    A-->>E: HTML
+    E-->>L: 200 + HTML (encrypted again, router maps it back to my laptop)
+    L->>E: GET /static/css/styles.css (same connection)
+    L->>G: gtag.js, then a page_view hit (new DNS lookup, TCP, TLS)
   end
 
-  ASSUME ~~~ LAP
-  MOD --- ISP
-  LAP -.->|"② DNS query, UDP 53<br/>C: laptop · S: resolver<br/>(crosses the same hardware)"| RES
-  IR ==>|"③ HTTP :80 → 301 to https<br/>④ TCP handshake to :443<br/>⑤ TLS: SNI, cert name/dates/chain → keys<br/>⑥ GET / · Host: dhwanijain.me (encrypted)<br/>C: laptop · S: Railway edge"| EDGE
-  EDGE ==>|"⑨ 200 + HTML, re-encrypted<br/>same path back · router un-NATs it"| IR
-  LAP -->|"⑩ further requests: CSS from the edge (same connection)<br/>gtag.js + page_view hit to Google (new DNS, TCP, TLS)"| GOOG
-  RW ~~~ AZ
-
-  classDef dns fill:#eef4ff,stroke:#4a6fb5
-  classDef tls fill:#fff4e0,stroke:#c98a1b
-  classDef az fill:#f3f3f3,stroke:#888
-  class RES,ROOT,TLD,CF dns
-  class EDGE,NGX tls
-  class AZDNS,NSG,PIP,UV,DB az
+  rect rgb(235, 235, 235)
+    Note over L,G: WHAT CHANGES ON AZURE · same five steps, different DNS answer and different server side
+    Note over D,P: DNS answer: A record 4.155.216.147 (not a flattened CNAME)<br/>NSG firewall allows 80 and 443 → public IP maps to VM private IP 172.16.0.4<br/>Nginx :443 with a Certbot certificate · TLS ENDS AT NGINX<br/>Nginx → Uvicorn on 127.0.0.1:8000 (loopback) → SQLite file on the same disk
+  end

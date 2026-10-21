@@ -1669,11 +1669,11 @@ _Filled in during Task 0._
 
 | Item | Value |
 |---|---|
-| `<PG_SERVICE>` | |
-| `<WEB_SERVICE>` | |
+| `<PG_SERVICE>` | `Postgres` (project `desirable-achievement`, environment `production`; recorded 2026-10-21) |
+| `<WEB_SERVICE>` | `career-platform` |
 | `<PG_MAJOR>` | **18**. Railway runs PostgreSQL 18.6. Local tests ran on 17.11; re-run them on `postgres:18` before relying on that |
-| Deploy source | |
-| `<RAILWAY_HOST>` | |
+| Deploy source | GitHub `djain2905/career-platform`, branch `main`, auto-deploy on push |
+| `<RAILWAY_HOST>` | `8udvcs1q.up.railway.app` (target of the root CNAME in Cloudflare, recorded 2026-10-21) |
 
 ## Execution Log
 
@@ -1699,3 +1699,39 @@ _Append a dated entry as each task completes: what was verified, what deviated f
 - **Copy:** `scripts.copy_sqlite_to_postgres` gave 1/4/5/16/3/8/18/18/2/1/5/0/0/0.
 - **Comparison:** a scratchpad script compared every table, row by row and column by column. Booleans were mapped to 0/1, dates to ISO strings and timestamps to UTC text. It ran against both the backup and a fresh `.backup` of the VM's live `resume.db`. The result was **14/14 tables identical** for both, with matching per-table content hashes.
 - **Page read:** `load_profile` against Railway returned `live Dhwani Jain 5 ['email','linkedin','github']`, with HUM Nutrition shown as "Jun 2026 – Present".
+
+### 2026-10-21: Tasks 7–9, recorded afterward
+
+Written on 2026-10-21, after the work. Tasks 7 and 8 were carried out around 2026-10-08 but not
+logged at the time, so this entry records only what can be checked now. It is not a plan made
+beforehand, and the Task 7–9 checkboxes stay unticked where a step's own check wasn't recorded.
+
+- **Cutover (Task 8):** Cloudflare's record metadata shows the root `CNAME dhwanijain.me →
+  8udvcs1q.up.railway.app` (DNS only) created 2026-10-08 22:18 UTC and the `_railway-verify` TXT
+  at 22:20 UTC. Railway's certificate for `dhwanijain.me` has notBefore 2026-10-08 21:23 UTC.
+- **Deviation from Task 8 Step 2:** `www` was not given its own CNAME. Railway's trial allows one
+  custom domain, so `www` is a **proxied** Cloudflare record with a redirect rule to the root. On
+  2026-10-13 the `www` record was still `A 4.155.216.147` (DNS only, the VM). It was changed on
+  2026-10-20.
+- **Post-cutover checks, 2026-10-21 ~21:16 UTC** (`docs/evidence/project-1-final-checks.md`):
+  root over HTTPS → 200 from `server: railway-hikari`; `http://` → 301 to https; `http://www`
+  and `https://www` → 301 to the root; root certificate Let's Encrypt YE1, `dhwanijain.me`,
+  valid to 2027-01-06; live page shows no "Showing saved content" banner.
+- **Task 7 (variables, deploy):** after `railway login` on 2026-10-21: the web service deploys
+  from GitHub `main`; `DATABASE_URL` references the Postgres service's private address
+  (`postgres.railway.internal:5432`); `APP_ENV` and `APP_NAME` were **not** set (deviation from
+  Step 1; the code's defaults apply). Deployments for `09e1437` failed twice (2026-10-08 21:28 and
+  21:30 UTC); their logs are no longer retained. `8bea26e` deployed successfully at 22:08 UTC.
+  Step 4 (redeploy) wasn't recorded separately, but every later push redeployed with the data intact.
+- **Task 9 (retire the VM):** the instructor told the class to delete the VM, which replaced this
+  plan's "stop but keep the disk". On 2026-10-21 `az vm list` returned no VMs. The public IP
+  `vm-career-platform-ip`, the NSG and the virtual network still exist in `rg-career-platform`.
+  Step 1's final data check (VM file unchanged since the copy) wasn't recorded before deletion.
+- **Data recheck:** Railway's Postgres no longer has a public URL (the one saved in `.env` fails
+  with `received invalid response to SSL negotiation`), so live data couldn't be compared again
+  from the laptop. A fresh seed gives exactly the counts recorded here on 2026-10-08.
+- **App change:** database failure now returns 503 with "Projects temporarily unavailable"
+  instead of showing saved projects (`tests/test_pages.py`, 48 tests pass). The deferred
+  `async def home` note from 2026-10-08 is resolved: `home` is now a plain `def`.
+  Committed as `c4e3154` and pushed to `main`; Railway created no deployment that day because
+  its builds were down in every region (status page: "Railway Platform Outage — Major Outage").

@@ -67,7 +67,7 @@ Conditions the handout implies but no task's main path exercises. Each has its c
 - Consumes: the existing `career-platform` service and the `.venv` at `/home/azureuser/career-platform/.venv`.
 - Produces: an app reachable only at `127.0.0.1:8000`, which Task 2's `proxy_pass` depends on.
 
-- [ ] **Step 1: Back up the current unit file**
+- [x] **Step 1: Back up the current unit file**
 
 ```bash
 ssh career-vm 'sudo cp /etc/systemd/system/career-platform.service /home/azureuser/career-platform.service.bak && ls -la /home/azureuser/career-platform.service.bak'
@@ -75,7 +75,7 @@ ssh career-vm 'sudo cp /etc/systemd/system/career-platform.service /home/azureus
 
 Expected: the backup file is listed. This is what the Undo block restores.
 
-- [ ] **Step 2: Record the current state for comparison**
+- [x] **Step 2: Record the current state for comparison**
 
 ```bash
 ssh career-vm 'sudo ss -ltnp | grep 8000'
@@ -83,7 +83,7 @@ ssh career-vm 'sudo ss -ltnp | grep 8000'
 
 Expected: one line showing `0.0.0.0:8000`. Save this output — Step 6 compares against it.
 
-- [ ] **Step 3: Write the new unit file**
+- [x] **Step 3: Write the new unit file**
 
 Replace the whole file. Two lines change: `ExecStart` now points at the venv's own `uvicorn` binary rather than `uv run` (so startup does not depend on `uv` resolving the environment), binds `127.0.0.1`, and adds `--workers 2`.
 
@@ -106,7 +106,7 @@ WantedBy=multi-user.target
 EOF'
 ```
 
-- [ ] **Step 4: Show the new file and confirm the changed lines**
+- [x] **Step 4: Show the new file and confirm the changed lines**
 
 ```bash
 ssh career-vm 'cat /etc/systemd/system/career-platform.service'
@@ -114,7 +114,7 @@ ssh career-vm 'cat /etc/systemd/system/career-platform.service'
 
 Expected: `ExecStart` reads `--host 127.0.0.1 --port 8000 --workers 2`. `User=azureuser` and `WorkingDirectory=/home/azureuser/career-platform` are unchanged.
 
-- [ ] **Step 5: Reload systemd and restart the service**
+- [x] **Step 5: Reload systemd and restart the service**
 
 `daemon-reload` makes systemd reread unit files from disk; without it, systemd keeps using the old definition.
 
@@ -124,7 +124,7 @@ ssh career-vm 'sudo systemctl daemon-reload && sudo systemctl restart career-pla
 
 Expected: `active`
 
-- [ ] **Step 6: Verify the listening address changed**
+- [x] **Step 6: Verify the listening address changed**
 
 ```bash
 ssh career-vm 'sudo ss -ltnp | grep 8000'
@@ -132,7 +132,7 @@ ssh career-vm 'sudo ss -ltnp | grep 8000'
 
 Expected: `127.0.0.1:8000`, and **no** `0.0.0.0:8000` line. If `0.0.0.0` is still present, the service did not pick up the new unit — rerun `daemon-reload`.
 
-- [ ] **Step 7: Verify the service is enabled, not merely started**
+- [x] **Step 7: Verify the service is enabled, not merely started**
 
 `start` runs it now. `enable` makes it start at every boot. Task 5's restart test depends on `enable`.
 
@@ -142,7 +142,7 @@ ssh career-vm 'systemctl is-enabled career-platform'
 
 Expected: `enabled`. If it says `disabled`, run `sudo systemctl enable career-platform` and check again.
 
-- [ ] **Step 8: Verify the app serves real data, not the demo profile**
+- [x] **Step 8: Verify the app serves real data, not the demo profile**
 
 A 200 alone does not prove the database was found — the app falls back to a placeholder profile when it cannot read `data/resume.db`. Check for actual content.
 
@@ -152,7 +152,7 @@ ssh career-vm 'curl -sS http://127.0.0.1:8000 | grep -ci "dhwani"'
 
 Expected: a count of 1 or greater. A `0` means the app started in the wrong directory and is serving the demo profile — check `WorkingDirectory=`.
 
-- [ ] **Step 9: Confirm the process tree**
+- [x] **Step 9: Confirm the process tree**
 
 ```bash
 ssh career-vm 'systemctl status career-platform --no-pager | sed -n "/CGroup/,$p"'
@@ -187,7 +187,7 @@ Changing `server_name` does **not** change where DNS sends visitors. DNS decides
 - Consumes: Uvicorn listening on `127.0.0.1:8000` from Task 1.
 - Produces: Nginx listening on `0.0.0.0:80` with `server_name dhwanijain.me www.dhwanijain.me`. Session 11's `certbot --nginx` modifies this exact file.
 
-- [ ] **Step 1: Install Nginx**
+- [x] **Step 1: Install Nginx**
 
 ```bash
 ssh career-vm 'sudo apt-get update && sudo apt-get install -y nginx && nginx -v'
@@ -195,7 +195,7 @@ ssh career-vm 'sudo apt-get update && sudo apt-get install -y nginx && nginx -v'
 
 Expected: `nginx version: nginx/1.24.0 (Ubuntu)`
 
-- [ ] **Step 2: Confirm Nginx is listening and serving its default page**
+- [x] **Step 2: Confirm Nginx is listening and serving its default page**
 
 ```bash
 ssh career-vm 'systemctl is-active nginx && curl -sI http://localhost | head -1'
@@ -203,7 +203,7 @@ ssh career-vm 'systemctl is-active nginx && curl -sI http://localhost | head -1'
 
 Expected: `active`, then `HTTP/1.1 200 OK` — this is still Nginx's own welcome page, not the site. Step 4 replaces it.
 
-- [ ] **Step 3: Write the site configuration**
+- [x] **Step 3: Write the site configuration**
 
 `proxy_pass` is the line that hands each request to Uvicorn. The `proxy_set_header` lines pass along what Nginx knows about the original request — the hostname the visitor asked for, their IP address, and whether they arrived over HTTP or HTTPS — which would otherwise be lost, since Uvicorn only ever sees a connection from `127.0.0.1`.
 
@@ -226,7 +226,7 @@ server {
 EOF'
 ```
 
-- [ ] **Step 4: Enable this site and disable the default one**
+- [x] **Step 4: Enable this site and disable the default one**
 
 `sites-available` holds every site Nginx knows about; `sites-enabled` holds symlinks to the ones it actually serves. Nginx ships a sample welcome site that answers every request not matched by name — if it stays enabled it can shadow the real site.
 
@@ -236,7 +236,7 @@ ssh career-vm 'sudo ln -sf /etc/nginx/sites-available/career-platform /etc/nginx
 
 Expected: `career-platform` is listed; `default` is gone.
 
-- [ ] **Step 5: Test the configuration before loading it**
+- [x] **Step 5: Test the configuration before loading it**
 
 `nginx -t` parses the config without applying it, so a typo cannot take the site down.
 
@@ -246,7 +246,7 @@ ssh career-vm 'sudo nginx -t'
 
 Expected: `syntax is ok` and `test is successful`. On failure, the message names the file and line number — fix that line and retest before reloading.
 
-- [ ] **Step 6: Reload Nginx and confirm the site answers through it**
+- [x] **Step 6: Reload Nginx and confirm the site answers through it**
 
 A reload makes Nginx reread its settings without dropping connections.
 
@@ -256,7 +256,7 @@ ssh career-vm 'sudo systemctl reload nginx && curl -sS http://localhost | grep -
 
 Expected: a count of 1 or greater, proving Nginx proxied to the app and the app found the database. A `0` with a 200 status means the default welcome page is still being served — recheck Step 4.
 
-- [ ] **Step 7: Confirm which program answered**
+- [x] **Step 7: Confirm which program answered**
 
 ```bash
 ssh career-vm 'curl -sI http://localhost | grep -i server'
@@ -264,7 +264,7 @@ ssh career-vm 'curl -sI http://localhost | grep -i server'
 
 Expected: `Server: nginx/1.24.0 (Ubuntu)`. Both programs did the work — Nginx took the request and set this header, Uvicorn produced the body.
 
-- [ ] **Step 8: Confirm port 8000 is still loopback-only**
+- [x] **Step 8: Confirm port 8000 is still loopback-only**
 
 ```bash
 ssh career-vm 'sudo ss -ltnp | grep -E ":80|:8000"'
@@ -292,7 +292,7 @@ To remove Nginx entirely: `ssh career-vm 'sudo apt-get remove -y nginx nginx-com
 - Consumes: Nginx listening on `0.0.0.0:80` from Task 2.
 - Produces: port 80 reachable from the internet. Session 11's Certbot HTTP-01 challenge depends on this rule existing.
 
-- [ ] **Step 1: Confirm the current rules before changing anything**
+- [x] **Step 1: Confirm the current rules before changing anything**
 
 Run from the laptop (read-only, safe for the agent):
 
@@ -302,7 +302,7 @@ az network nsg rule list -g rg-career-platform --nsg-name vm-career-platform-nsg
 
 Expected: only `Allow-SSH-Laptop` on port 22. If a `Temp-HTTP-8000` rule appears, delete it in the portal — port 8000 stays closed from here on.
 
-- [ ] **Step 2: Add the inbound rule in the portal**
+- [x] **Step 2: Add the inbound rule in the portal**
 
 **Owner action.** Azure portal → the VM → **Networking** → **Network settings** → **Add inbound port rule**:
 
@@ -320,7 +320,7 @@ Expected: only `Allow-SSH-Laptop` on port 22. If a `Temp-HTTP-8000` rule appears
 
 Unlike the temporary port 8000 rule, this one stays. Port 80 is meant to be public, because Nginx is the program built to face the internet.
 
-- [ ] **Step 3: Verify the rule exists**
+- [x] **Step 3: Verify the rule exists**
 
 ```bash
 az network nsg rule list -g rg-career-platform --nsg-name vm-career-platform-nsg --query "[].{name:name, port:destinationPortRange, source:sourceAddressPrefix, prio:priority}" -o table
@@ -328,7 +328,7 @@ az network nsg rule list -g rg-career-platform --nsg-name vm-career-platform-nsg
 
 Expected: `Allow-HTTP-80`, port `80`, source `*`, priority `320`.
 
-- [ ] **Step 4: Verify the site answers over the public internet by IP**
+- [x] **Step 4: Verify the site answers over the public internet by IP**
 
 This works regardless of DNS, which is why it comes before Task 4. Use lowercase `-i`, not `-I`: the app registers only `GET`, so a `HEAD` request returns `405 Method Not Allowed` with `allow: GET`. That 405 is expected and does not mean the site is down.
 
@@ -339,7 +339,7 @@ curl -sS http://4.155.216.147 | grep -ci "dhwani"
 
 Expected: `HTTP/1.1 200 OK`, then a count of 1 or greater.
 
-- [ ] **Step 5: Confirm port 8000 is closed from outside**
+- [x] **Step 5: Confirm port 8000 is closed from outside**
 
 ```bash
 curl -sS -m 10 -o /dev/null -w "%{http_code}\n" http://4.155.216.147:8000 ; echo "exit=$?"
@@ -365,7 +365,7 @@ DNSSEC must be turned off at Namecheap **before** the switch. DNSSEC signs the a
 - Consumes: the static public IP `4.155.216.147` from the VM details, and port 80 open from Task 3.
 - Produces: `dhwanijain.me` and `www.dhwanijain.me` resolving to `4.155.216.147` from public resolvers. Session 11's Certbot run cannot start until this is true.
 
-- [ ] **Step 1: Delegate the domain to Cloudflare**
+- [x] **Step 1: Delegate the domain to Cloudflare**
 
 **Owner action**, in this order:
 
@@ -377,7 +377,7 @@ DNSSEC must be turned off at Namecheap **before** the switch. DNSSEC signs the a
 
 Propagation takes minutes to a day. Do not wait on it — Tasks 1 through 3 and Task 5 are all independent of DNS.
 
-- [ ] **Step 2: Verify the delegation took effect**
+- [x] **Step 2: Verify the delegation took effect**
 
 ```bash
 dig +short dhwanijain.me NS
@@ -385,7 +385,7 @@ dig +short dhwanijain.me NS
 
 Expected: two `.ns.cloudflare.com` names. If `registrar-servers.com` still comes back, the change has not spread yet or was not saved — recheck the Namecheap Nameservers section and that DNSSEC is off, then check again later.
 
-- [ ] **Step 3: Verify the address from public resolvers**
+- [x] **Step 3: Verify the address from public resolvers**
 
 Your own resolver may hold a cached answer, and on campus it may answer differently. Google's and Cloudflare's public resolvers are what the rest of the internet — including Let's Encrypt — sees.
 
@@ -397,7 +397,7 @@ dig +short @8.8.8.8 www.dhwanijain.me A
 
 Expected: `4.155.216.147` from all three. An address starting with `104.` or `172.67.` means the Cloudflare proxy is on — set both records to DNS only (gray cloud). The GitHub Pages addresses `185.199.x.x` mean the old Namecheap records are still being served, so the delegation has not completed.
 
-- [ ] **Step 4: Verify the site answers by name**
+- [x] **Step 4: Verify the site answers by name**
 
 Run from the VM, which sits outside LMU's network, so a campus block cannot confuse the result:
 
@@ -407,7 +407,7 @@ ssh career-vm 'curl -sS -i http://dhwanijain.me | head -1; curl -sS http://dhwan
 
 Expected: `HTTP/1.1 200 OK` and a count of 1 or greater.
 
-- [ ] **Step 5: Note what a campus browser shows**
+- [x] **Step 5: Note what a campus browser shows**
 
 On LMU Wi-Fi, `http://dhwanijain.me` will likely show a red "Web Page Blocked" malware warning. The site has no malware; LMU blocks domains it has not reviewed, and this one is days old. Review takes days to weeks. Confirm the site genuinely works by loading it on a phone with Wi-Fi off, or over a phone hotspot. Record which method was used.
 
@@ -425,11 +425,11 @@ On LMU Wi-Fi, `http://dhwanijain.me` will likely show a red "Web Page Blocked" m
 - Consumes: the `enabled` service from Task 1 and Nginx from Task 2.
 - Produces: evidence that boot time and service start time match, which is the proof that nobody started the app by hand.
 
-- [ ] **Step 1: Restart the VM**
+- [x] **Step 1: Restart the VM**
 
 **Owner action.** Azure portal → the VM → **Overview** → **Restart**. Use **Restart**, not **Stop** — Restart reboots Ubuntu while keeping the VM allocated. Wait until the status reads **Running**.
 
-- [ ] **Step 2: Confirm the site came back with nobody logged in**
+- [x] **Step 2: Confirm the site came back with nobody logged in**
 
 Give it a minute if it is slow to come up.
 
@@ -440,7 +440,7 @@ curl -sS http://4.155.216.147 | grep -ci "dhwani"
 
 Expected: `HTTP/1.1 200 OK` and a count of 1 or greater.
 
-- [ ] **Step 3: Capture boot time against service start time**
+- [x] **Step 3: Capture boot time against service start time**
 
 ```bash
 ssh career-vm 'echo "=== last boot ==="; uptime -s; echo "=== service active since ==="; systemctl show career-platform -p ActiveEnterTimestamp --value; echo "=== nginx active since ==="; systemctl show nginx -p ActiveEnterTimestamp --value; echo "=== both enabled? ==="; systemctl is-enabled career-platform nginx'
@@ -448,7 +448,7 @@ ssh career-vm 'echo "=== last boot ==="; uptime -s; echo "=== service active sin
 
 Expected: the service timestamp is within roughly a minute of the boot timestamp, and both services report `enabled`. A service start time much later than boot would suggest someone started it manually.
 
-- [ ] **Step 4: Record the results under this task**
+- [x] **Step 4: Record the results under this task**
 
 Paste the Step 2 and Step 3 output into the Execution Log at the bottom of this plan, under a `Task 5` heading. This output is the Project 1 restart-verification evidence referenced by the Session 11 handout.
 
@@ -469,7 +469,7 @@ Paste the Step 2 and Step 3 output into the Execution Log at the bottom of this 
 - Consumes: the completed state from Tasks 1 through 5.
 - Produces: a committed, redacted plan file on GitHub, which the Session 11 handout reads for VM details.
 
-- [ ] **Step 1: Gather every listening port**
+- [x] **Step 1: Gather every listening port**
 
 ```bash
 ssh career-vm 'sudo ss -ltnp'
@@ -477,7 +477,7 @@ ssh career-vm 'sudo ss -ltnp'
 
 Expected: `0.0.0.0:22` (sshd), `0.0.0.0:80` (nginx), `127.0.0.1:8000` (uvicorn), plus `127.0.0.53:53` (Ubuntu's local DNS helper) and matching IPv6 lines. There must be no `0.0.0.0:8000`.
 
-- [ ] **Step 2: Gather both IP addresses**
+- [x] **Step 2: Gather both IP addresses**
 
 ```bash
 ssh career-vm 'hostname -I'
@@ -486,17 +486,17 @@ az network public-ip list -g rg-career-platform --query "[].{name:name, ip:ipAdd
 
 Note that the public IP appears nowhere on the VM. Azure holds the public address and forwards traffic to the private one, which is why `hostname -I` shows only `172.16.0.4`.
 
-- [ ] **Step 3: Gather the NSG rules**
+- [x] **Step 3: Gather the NSG rules**
 
 ```bash
 az network nsg rule list -g rg-career-platform --nsg-name vm-career-platform-nsg --query "[].{name:name, port:destinationPortRange, source:sourceAddressPrefix, prio:priority, access:access}" -o table
 ```
 
-- [ ] **Step 4: Fill in the Record section**
+- [x] **Step 4: Fill in the Record section**
 
 Write the gathered output into the **Record** section below, replacing its placeholder note. Give each NSG rule a one-line reason it exists.
 
-- [ ] **Step 5: Redact before committing**
+- [x] **Step 5: Redact before committing**
 
 This repository is public. Replace the laptop's public IP with `<LAPTOP_IP>` and the Azure subscription ID with `<PERSONAL_SUBSCRIPTION_ID>` everywhere in this file, then confirm:
 
@@ -511,7 +511,7 @@ Expected: `CLEAN`.
 
 The VM's public IP `4.155.216.147` is deliberately **not** redacted. Public DNS now publishes it to anyone who looks up `dhwanijain.me`, so hiding it in this file would protect nothing while making the plan harder to follow. The laptop IP and subscription ID are different — neither is published anywhere, and both identify things beyond this one server.
 
-- [ ] **Step 6: Commit and push**
+- [x] **Step 6: Commit and push**
 
 ```bash
 cd /Users/dhwanijain/isba-4775/career-platform
@@ -520,7 +520,7 @@ git commit -m "docs: add operate-the-vm plan with network record"
 git push origin main
 ```
 
-- [ ] **Step 7: Verify it reached GitHub**
+- [x] **Step 7: Verify it reached GitHub**
 
 A commit saves it on the laptop; the push is what sends it to GitHub. Open `https://github.com/djain2905/career-platform/blob/main/docs/superpowers/plans/2026-10-01-operate-the-vm.md` and confirm the Record section and the Execution Log are visible.
 
