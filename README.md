@@ -225,8 +225,15 @@ and Tasks 1–4.
 **Preserving current data.** The copy kept every id and reset the identity sequences. Before
 switching over, my coding agent ran a script comparing every table between the VM's database and
 Railway Postgres, and all 14 tables matched (plan execution log, 2026-10-08). That script wasn't
-committed. Not done: a deliberate real change to the data before the copy, and a rendered-page
-comparison between the two hosts. See [Limitations](#limitations).
+committed.
+
+**A real change in the migrated data.** On 2026-10-07, the day before the copy, I removed a bullet
+that had been duplicated from the L'Oréal project onto the LMU Datathon project (commit `a987583`).
+The row was deleted from the database directly, which leaves a gap in the ids (22, 24) and
+positions (0, 2). A fresh run of the seed script numbers them 0 and 1, so re-seeding can't pass
+for the migrated data. **Rendered page:** the page built from my 2026-10-07 copy of the source
+database and the live Railway page have identical visible text, 105 of 105 lines (checked
+2026-10-21). Details and caveats: [final checks §9](docs/evidence/project-1-final-checks.md#9-source-vs-target-the-oct-7-data-change-and-the-rendered-page-2026-10-21-2150-utc).
 
 **Who manages what**
 
@@ -296,12 +303,11 @@ Written 2026-10-21, after the work, from the plans and records.
 
 ## Limitations
 
-- **Railway data not re-compared today.** The 2026-10-08 comparison was run by an uncommitted
-  agent script; no deliberate data change was made before the copy, and the two hosts' rendered
-  pages weren't compared. Railway's Postgres no longer has a public URL, so I couldn't recheck
-  from my laptop. The row counts recorded on Railway (1/4/5/16/3/8/18/18/2/1/5/0/0/0) are
-  exactly what `scripts/seed_resume.py` produces, so the live data is most likely the seed
-  content, unchanged.
+- **Railway's live rows not re-read today.** The 2026-10-08 comparison was run by an uncommitted
+  agent script. The 2026-10-21 page comparison used my 2026-10-07 laptop copy as the source, not
+  the exact 2026-10-08 VM backup, which no longer exists. Railway's database has no public
+  address, and `railway ssh` timed out during Railway's outage, so I couldn't read the live rows
+  to confirm the 2026-10-07 change directly.
 - **Two failed Railway deployments on 2026-10-08** (`0c74dc20`, `bc840260`, both for commit
   `09e1437`, before the Postgres code was on `main`). Their logs are no longer available, so the
   cause wasn't recorded. The next deployment, `b8448c7d` for `8bea26e`, succeeded.

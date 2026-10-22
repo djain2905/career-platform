@@ -27,8 +27,8 @@ From the requirements audit on 2026-10-20 against `95b51b2`. Each line names the
 
 ## 4. Railway and PostgreSQL migration
 
-- [ ] Record the real change made to the original data before the copy, and show it on Railway — Railway plan execution log
-- [ ] ~~Compare the rendered page on the VM and on Railway~~ Can't now, VM deleted; recorded as a limitation — Railway plan execution log
+- [x] Record the real change made to the original data before the copy (found: `a987583`, 2026-10-07; Railway-side row check pending SSH), and show it on Railway — Railway plan execution log
+- [x] Compare the rendered page: Oct 7 source copy vs live Railway, identical (VM itself deleted) — Railway plan execution log
 - [x] Log Task 7 (deploy, variables, Railway-domain checks, redeploy) — logged 2026-10-21 after `railway login` — `docs/superpowers/plans/2026-10-08-railway-postgres-migration.md`
 - [x] Log Task 8 (cutover date, DNS changes, post-cutover checks) — `docs/superpowers/plans/2026-10-08-railway-postgres-migration.md`
 - [x] Log Task 9 or note why it changed — `docs/superpowers/plans/2026-10-08-railway-postgres-migration.md`

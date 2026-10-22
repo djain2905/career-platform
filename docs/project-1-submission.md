@@ -35,8 +35,12 @@ Times are Pacific unless marked UTC. Anything not verified is marked as such.
 - **Source/target data comparison (2026-10-08):** plan execution log, Task 6. Row counts
   1/4/5/16/3/8/18/18/2/1/5/0/0/0, and 14 of 14 tables identical in a script my coding agent ran
   (script not committed).
-- **Not done:** a deliberate real data change before the copy, and a rendered-page comparison
-  between the VM and Railway
+- **Real data change before the copy:** the duplicated Datathon bullet deleted from the database
+  on 2026-10-07 (commit `a987583`). A fresh seed can't reproduce the resulting ids and positions.
+  [Final checks §9](evidence/project-1-final-checks.md#9-source-vs-target-the-oct-7-data-change-and-the-rendered-page-2026-10-21-2150-utc)
+- **Rendered-page comparison (2026-10-21):** page from my 2026-10-07 copy of the source database
+  vs the live Railway page: identical visible text, 105 of 105 lines (same section). Railway's
+  live rows weren't re-read directly; see its caveats.
 - **Cutover:** the root CNAME to Railway was created 2026-10-08 22:18 UTC (Cloudflare record
   metadata); Railway's certificate notBefore is 2026-10-08 21:23 UTC. Post-cutover checks:
   [final checks §1–5](evidence/project-1-final-checks.md) (2026-10-21)

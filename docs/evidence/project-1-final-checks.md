@@ -170,3 +170,45 @@ public URL.
 - **Railway PostgreSQL contents.** With no public URL, the live data couldn't be compared from my
   laptop. Running the read-only check inside Railway (`railway ssh`) needs an SSH key registered
   to my Railway account, which I haven't added.
+
+## 9. Source vs target: the Oct 7 data change and the rendered page (2026-10-21, ~21:50 UTC)
+
+**Source used:** `data/resume.db` on my laptop, last modified 2026-10-07 14:07 PDT. It's my
+local copy of the SQLite database the day before the cutover. It is **not** the exact file that
+was migrated (that was a fresh `.backup` taken on the VM on 2026-10-08, which no longer exists).
+Same row counts as the migrated data: 1/4/5/16/3/8/18/18/2/1/5/0/0/0.
+
+**The real data change.** On 2026-10-07, commit `a987583` removed a bullet that had been copied
+from the L'Oréal project onto the LMU Datathon project (see
+[impeccable-design-activity.md](impeccable-design-activity.md)). The row was deleted from the
+database directly, not by re-running the seed. Comparing the source copy with a fresh run of
+`scripts/seed_resume.py`, ignoring ids and timestamps:
+
+```text
+person_profile, contact_method, role_experience, experience_highlight, project,
+skill, skill_proficiency, education_record, certification, achievement   same content
+project_highlight   DIFFERENT
+   source only: ('lmu-datathon', 'Analyzed the impact of meal break regulations on EMT
+                 operations using Python, SQL, and Excel; …', '2')
+   seed only:   ('lmu-datathon', 'Analyzed the impact of meal break regulations on EMT
+                 operations using Python, SQL, and Excel; …', '1')
+```
+
+In the source, the Datathon's bullets are ids 22 and 24 at positions 0 and 2: the gap is the
+deleted row. A fresh seed numbers them consecutively at positions 0 and 1. So re-seeding can't
+reproduce the source data, and the 2026-10-08 comparison found Railway identical to the VM's
+data, ids included (Railway plan, Task 6).
+
+**Rendered page.** I loaded the source copy into a throwaway local Postgres with
+`scripts/copy_sqlite_to_postgres.py`, served it with the current app, and compared its visible
+text with `https://dhwanijain.me/`:
+
+```text
+105 lines (source) vs 105 lines (live Railway)
+VISIBLE TEXT IDENTICAL
+```
+
+**Not yet checked:** reading Railway's live rows directly to confirm the gap at ids 22/24 is still
+there. Railway's database has no public address, and `railway ssh` to the app container timed out
+(`ssh.railway.com port 22: Operation timed out`) during Railway's outage, while port 22 to
+GitHub worked from the same network.
