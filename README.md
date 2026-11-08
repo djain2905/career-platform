@@ -379,7 +379,7 @@ made before the AWS work, on 2026-10-29.
 - **RDS keeps only 1 day of automated backups,** the Free plan's limit. Anything older depends on
   my own `pg_dump` files outside AWS.
 - **The AWS account is on the Free plan.** It closes 6 months after signup, or when the credits run
-  out (about 3.8 months on $100 at $26.50/month). The site goes with it unless I upgrade or move first.
+  out ($140 in credits lasts about 5.3 months at $26.50/month; $136.04 was left on 2026-11-08). The site goes with it unless I upgrade or move first.
 - **One instance and one Single-AZ database** in one Availability Zone. An outage there takes the
   site down. Multi-AZ costs about double and isn't on the Free plan.
 - **No auto-deploy and no alerting.** Deploys are manual over SSH, and nothing pages me if the site

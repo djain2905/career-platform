@@ -18,7 +18,7 @@
 | Build method | AWS CLI commands, run one at a time, each recorded with its output in the Execution Log. Not the console, not CloudFormation |
 | Cutover | Short downtime. Freeze edits, take a fresh dump, restore, switch the apex DNS. Railway stays up about a day as the rollback, then is deleted |
 | Branch | All work on `aws-ec2-rds-migration`. **Not merged to `main` until Railway is retired** (Task 9), because Railway redeploys on every push to `main` |
-| Account plan | Stay on the AWS **Free plan** with 1-day RDS backups (owner, 2026-11-03). 7 days was refused with `FreeTierRestrictionError`. There are no charges, but the account closes 6 months after signup or when credits run out, whichever comes first. At $26.50/month, $100 of credit lasts about 3.8 months. Upgrade to Paid before then to keep the site |
+| Account plan | Stay on the AWS **Free plan** with 1-day RDS backups (owner, 2026-11-03). 7 days was refused with `FreeTierRestrictionError`. There are no charges, but the account closes 6 months after signup or when credits run out, whichever comes first. At $26.50/month, $100 of credit lasts about 3.8 months. (2026-11-08: the account actually has $140 in credits, about 5.3 months.) Upgrade to Paid before then to keep the site |
 | Revision (2026-11-08) | Railway's trial ended, and the site has returned 404 since then. Restore from the Oct 29 dump, with no fresh dump. Test on `aws.dhwanijain.me` first (guide §10), then cut over. Keep the running Ubuntu **24.04** / 16 GB instance instead of the guide's 26.04 / 20 GB (owner: "move forward"). PGDG supplies `pg_restore` 18 |
 | RDS access | The owner attached an RDS policy to `isba-student` from the root account. The owner pays for this account |
 
