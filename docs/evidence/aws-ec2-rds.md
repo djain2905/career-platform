@@ -49,5 +49,5 @@ and the deviations are in [`migration-notes.md`](../../migration-notes.md).
 
 - The real domain `dhwanijain.me` still points at Railway, which has returned `404` since the trial ended. That's for the cutover.
 - `certbot renew --dry-run` was still in its random pre-run delay when this was written. Its result is in the plan's Execution Log.
-- Visual check in a browser (padlock and layout): for the owner.
+- ~~Visual check in a browser~~: done by the owner on 2026-11-08 (padlock, valid certificate, normal layout).
 - No load testing. The site gets very little traffic.
