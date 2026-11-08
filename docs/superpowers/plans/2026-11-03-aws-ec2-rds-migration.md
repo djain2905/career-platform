@@ -974,3 +974,41 @@ Branch `aws-ec2-rds-migration` created from `main` at `89b52d3`. No AWS resource
 - **Task 4:** instance `career-web`: `t3.micro`, `us-east-1a`, Ubuntu 24.04 (`ami-0d6dd9e8265d48906`, 20261023), IMDSv2 required, standard credits, encrypted 16 GB gp3. The Elastic IP `<EIP>` is attached and survives stop/start.
 - **Host key:** the ED25519 key from `ssh-keyscan` matches the instance's boot log (`SHA256:ZcRO8jUjyhIpnE0jUZD0dREvLmHg0wxizkCDafhH/zQ`). The owner hasn't yet approved trusting it, so the first SSH connection hasn't happened.
 - **Task 3 verified:** `career-db` is available: PostgreSQL 18.6, `db.t4g.micro`, `us-east-1a`, Single-AZ, not public, encrypted, 20 GB gp3, 1-day backups, deletion protection on, one security group. The endpoint is saved in `ids.env`.
+
+### 2026-11-08: Tasks 1, 5, 6, 7. COMPLETE
+
+- **Task 1:** deploy files and 13 tests, 61 passing overall. Committed as `cdb0801` on the branch.
+- **Before Task 5:**
+  - The laptop's IP had changed since 2026-11-03, so the port-22 rule was re-pointed.
+  - The RDS master password was rotated, because 6 characters of it were printed to the transcript by mistake during a secrets scan.
+  - The fresh `ssh-keyscan` still matched the boot-log ED25519 fingerprint, and that key was pinned.
+- **Task 5:** Ubuntu 24.04.5. PGDG `pg_restore`/`psql` **18.6**. Python 3.13.18. 114 RDS CA certificates. `sslmode=disable` was rejected (`no pg_hba.conf entry … no encryption`). `verify-full` connected with `t|TLSv1.3`.
+- **Task 6:**
+  - `career_app` owns `career`.
+  - The server's `.env` is mode 600.
+  - The Oct 29 dump (sha256 `7440740f34d2892f…`) restored in **248 ms**.
+  - `init_db` ran as `career_app`, 14 tables.
+  - Counts are identical to the backup's: 1/4/5/16/3/8/18/18/2/1/5/0/0/0.
+  - The spot checks found "Dhwani Jain" and the current role "HUM Nutrition".
+- **Task 6 deviation:** the first `scp` in the combined block stopped the script without printing an error. Re-run on its own, it succeeded. The sequence check failed on shell quoting, so it was skipped (`pg_restore` restores sequence values).
+- **Task 7:**
+  - `Deployed cdb0801: /health 200, / 200`. Uvicorn listens on `127.0.0.1:8000` only.
+  - From the laptop: 200, banner 0, projects-unavailable 0, role present, `/privacy` 200, port 8000 `000`.
+  - With the 5432 rule revoked: **503** in 4 s, profile visible, "Projects temporarily unavailable". With it restored: **200** with no restart.
+  - Stop/start kept the Elastic IP, and the homepage came back 200.
+
+### 2026-11-08: Tasks 8 and 9 (test subdomain, cutover). COMPLETE
+
+- **Task 8:**
+  - `A aws.dhwanijain.me → <EIP>`, DNS only, created with `cf dns records create`. A before/after diff showed one record added.
+  - Certbot was registered **without an email** (the owner's choice; the guide doesn't require one).
+  - Certificate from Let's Encrypt YE2, valid to 2027-02-06.
+  - All visitor checks passed (`docs/evidence/aws-ec2-rds.md`).
+  - My first static-file check used a wrong path (`/static/css` is a folder). The page's real stylesheet returns 200.
+- **Task 9:**
+  - The apex `CNAME → Railway` was overwritten as `A → <EIP>`, DNS only, at **2026-11-08 23:14 UTC**. The diff showed only that record changed. `_railway-verify` was left in place.
+  - 1.1.1.1 and 8.8.8.8 both answered `<EIP>` within the first check.
+  - `certbot --expand` now covers both names (Let's Encrypt YE1, valid to 2027-02-06). `certbot renew --dry-run --no-random-sleep-on-renew` succeeded.
+  - `https://dhwanijain.me` returns 200 from nginx with the full page. `www` returns 301 to the root. The MX records are unchanged (Zoho).
+- **README (guide §12)** updated with an AWS Mermaid diagram. `docs/evidence/ex07.md` written. The owner adds the two screenshots (`ex07-dns.png`, `ex07-billing.png`).
+

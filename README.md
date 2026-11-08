@@ -5,8 +5,12 @@ It shows my profile, experience, projects, skills and education, read from a Pos
 database on every request.
 
 **Live:** <https://dhwanijain.me> (`www.dhwanijain.me` redirects there)
-**Runs on:** Railway (FastAPI + Uvicorn, Railway PostgreSQL), DNS on Cloudflare, email on Zoho
-Mail, analytics in Google Analytics 4. It ran on an Azure Ubuntu VM until 2026-10-08.
+**Runs on:** AWS since 2026-11-08: an EC2 instance (Nginx + Uvicorn + FastAPI) and a Single-AZ RDS
+PostgreSQL database in us-east-1. DNS on Cloudflare, email on Zoho Mail, analytics in Google Analytics 4.
+Before that it ran on Railway (2026-10-08 → its trial ended about 2026-11-07) and on an Azure Ubuntu VM.
+**AWS migration:** [plan](docs/superpowers/plans/2026-11-03-aws-ec2-rds-migration.md) ·
+[deviation notes](migration-notes.md) · [test-subdomain evidence](docs/evidence/aws-ec2-rds.md) ·
+[Exercise 07 results](docs/evidence/ex07.md)
 **Project 1 evidence index:** [docs/project-1-submission.md](docs/project-1-submission.md)
 
 | Where it came from | File |
@@ -16,6 +20,7 @@ Mail, analytics in Google Analytics 4. It ran on an Azure Ubuntu VM until 2026-1
 | Azure VM migration plan | [docs/superpowers/plans/2026-09-24-azure-vm-migration.md](docs/superpowers/plans/2026-09-24-azure-vm-migration.md) |
 | Operating the VM (Nginx, workers, HTTPS, restart) | [docs/superpowers/plans/2026-10-01-operate-the-vm.md](docs/superpowers/plans/2026-10-01-operate-the-vm.md) |
 | Railway + PostgreSQL migration plan | [docs/superpowers/plans/2026-10-08-railway-postgres-migration.md](docs/superpowers/plans/2026-10-08-railway-postgres-migration.md) |
+| AWS EC2 + RDS migration plan | [docs/superpowers/plans/2026-11-03-aws-ec2-rds-migration.md](docs/superpowers/plans/2026-11-03-aws-ec2-rds-migration.md) |
 
 ---
 
@@ -25,8 +30,8 @@ Mail, analytics in Google Analytics 4. It ran on an Azure Ubuntu VM until 2026-1
   GitHub), experience, projects, skills, education and awards. My phone number is stored but
   never rendered (`PRIVATE_CONTACT_TYPES` in `app/repository.py`).
 - `/privacy` explains what Google Analytics collects.
-- `/health` returns `{"status":"ok"}` for Railway's health check. It does **not** touch the
-  database (see [Limitations](#limitations)).
+- `/health` returns `{"status":"ok"}`. It does **not** touch the database, so the deploy script
+  (`deploy/aws/deploy.sh`) also requires `/` to return 200, which it doesn't when the database is down.
 
 **When the database is unavailable** the page still shows my profile from the last saved copy,
 with a "Showing saved content" note. The Projects section says **"Projects temporarily
@@ -46,7 +51,49 @@ stopping the database on purpose ([final checks §6](docs/evidence/project-1-fin
 The request path, drawn for the midterm question, is in
 [docs/diagrams/request-path.png](docs/diagrams/request-path.png).
 
-### Railway (current)
+### AWS (current, since 2026-11-08)
+
+```mermaid
+flowchart LR
+  BR["Browser"] -- "DNS query" --> DNS
+  subgraph CF["Cloudflare"]
+    DNS["Authoritative DNS<br/>@ A → Elastic IP (DNS only)<br/>aws A → Elastic IP (test name)<br/>MX/SPF/DKIM/DMARC for Zoho"]
+    PX["Proxy for www<br/>301 → https://dhwanijain.me/"]
+  end
+  BR -- "HTTPS :443 (www only)" --> PX
+  BR -- "HTTP :80 / HTTPS :443<br/>to the Elastic IP" --> WSG
+  LAP["My laptop"] -- "SSH :22, key only<br/>the only admin path" --> WSG
+  subgraph AWS["AWS us-east-1, default VPC"]
+    WSG["career-web-sg<br/>22 from my IP /32 only<br/>80, 443 from anyone"]
+    subgraph AZ["Availability Zone us-east-1a"]
+      subgraph EC2["EC2 career-web: t3.micro, Ubuntu 24.04, IMDSv2"]
+        NGX["Nginx<br/>:80 → 301, :443<br/>TLS ends here (Let's Encrypt, Certbot)"]
+        UV["Uvicorn, 2 workers<br/>127.0.0.1:8000, systemd"]
+      end
+      DSG["career-db-sg<br/>5432 from career-web-sg only"]
+      subgraph RDSB["RDS career-db (not publicly accessible)"]
+        PG[("PostgreSQL 18.6<br/>db.t4g.micro, Single-AZ<br/>20 GB gp3, encrypted")]
+        BK[("Automated backups<br/>daily, kept 1 day")]
+      end
+    end
+  end
+  WSG --> NGX
+  NGX -- "plain HTTP over loopback" --> UV
+  UV -- "SQL over TLS (verify-full)<br/>as career_app" --> DSG --> PG
+  PG -. "snapshots" .-> BK
+  LAP -. "pg_dump files, kept outside AWS<br/>(~/backups + independent copy)" .- PG
+  DEV["My laptop"] -- "git push" --> GH["GitHub repo"]
+  GH -. "deploy.sh: git pull over SSH,<br/>no auto-deploy" .-> UV
+```
+
+Where HTTPS ends: at Nginx on the instance. Uvicorn only sees plain HTTP on the loopback
+interface, and trusts Nginx's `X-Forwarded-Proto` because it comes from `127.0.0.1`. The database
+has no public address. The only way in is from the web server's security group, over TLS. `www`
+never reaches AWS: Cloudflare answers it and redirects. Not drawn: Google Analytics and Zoho, which
+didn't change (see the Railway diagram below). **Unfinished:** the automated backups cover only 1
+day (Free plan limit), so longer history depends on my own `pg_dump` files.
+
+### Railway (2026-10-08 → about 2026-11-07, trial ended)
 
 ```mermaid
 flowchart LR
@@ -144,38 +191,39 @@ to run against any non-local host.
 
 ### Configuration
 
-| Variable | Local | Railway | Azure (retired) |
+| Variable | Local | AWS (current) | Railway (retired) |
 |---|---|---|---|
-| `DATABASE_URL` | local Docker Postgres | reference to the Postgres service's **private** URL, set in Railway variables, never in git | the SQLite file path |
-| `PORT` | — (uvicorn default) | set by Railway; `railway.json` starts Uvicorn on it | — (systemd unit used 8000) |
-| `RAILWAY_DATABASE_URL` | Railway's **public** Postgres URL, in my local `.env` only, used for the one-time data copy | — | — |
-| `APP_ENV`, `APP_NAME` | `.env` | not set; the code's defaults apply | `.env` on the VM |
+| `DATABASE_URL` | local Docker Postgres | `career_app` on RDS with `sslmode=verify-full`, in `/home/ubuntu/career-platform/.env` (mode 600) on the instance only | reference to the Postgres service's **private** URL |
+| `PORT` | — (uvicorn default) | — (the systemd unit binds `127.0.0.1:8000`) | set by Railway |
+| `APP_ENV`, `APP_NAME` | `.env` | `.env` on the instance | not set |
 
-Secrets live only in `.env` (gitignored) and Railway's variables.
+Secrets live only in `.env` files (gitignored) and, for AWS, in mode-600 files under
+`~/.config/career-platform/aws/` on my laptop: the RDS master password, the app role's password and
+the resource IDs.
 
 ### Deploy an update
 
 1. Change the code and run `uv run pytest`.
 2. Run it locally and check the page in a browser.
 3. Read the diff (`git diff`), then commit and push to `main`.
-4. Railway is connected to the GitHub repo `djain2905/career-platform` and deploys every push to
-   `main` (confirmed 2026-10-21 with `railway status`). It builds with Railpack from `pyproject.toml`/`uv.lock`, runs `python -m scripts.init_db`
-   (idempotent schema) before deploy, then starts
-   `uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 2` (`railway.json`).
+4. Deploy: `ssh career-aws '~/career-platform/deploy/aws/deploy.sh main'`. Nothing deploys on push.
+   The script pulls `main`, runs `uv sync --frozen --no-dev` and `python -m scripts.init_db`
+   (idempotent schema, **never** a seed script), restarts `career-platform.service`, and exits non-zero
+   unless `/health` and `/` both return 200.
 5. Check the live site: `curl -sS -o /dev/null -w "%{http_code}\n" https://dhwanijain.me/` and the
-   page content.
+   page content. Logs: `ssh career-aws 'journalctl -u career-platform -n 50'`.
 
-The reviewed change I shipped this way is recorded in the
+If SSH times out, my laptop's IP has probably changed. Re-point the port-22 rule (command in the
+plan, Task 2). The reviewed change I shipped through Railway is recorded in the
 [submission index](docs/project-1-submission.md#5-a-reviewed-change-through-railway).
 
 ---
 
 ## Roll back a bad change
 
-**Application code.** Either redeploy the previous successful deployment from the Railway
-dashboard (fastest, no Git change), or `git revert <bad-sha>` and push, which deploys a new
-commit with the old code. Reverting restores committed files only. It doesn't change Railway
-variables, the database, or DNS.
+**Application code.** `git revert <bad-sha>`, push, then run `deploy.sh main`. Or, faster, deploy
+the last good commit directly: `ssh career-aws '~/career-platform/deploy/aws/deploy.sh <good-sha>'`.
+Reverting restores committed files only. It doesn't change `.env`, the database, or DNS.
 
 **Database schema.** `app/schema.sql` only ever creates tables and indexes
 (`CREATE … IF NOT EXISTS`), and runs before every deploy. Reverting code never drops anything, so
@@ -185,16 +233,21 @@ destructive schema change would need its own written down-migration and a backup
 **Data.** The site has no write path: there's no admin page, and content only changes when I run
 a script. So before any data change:
 
-1. Back it up: `pg_dump --format=custom "$RAILWAY_DATABASE_URL" -f ~/backups/career-$(date -u +%Y%m%dT%H%MZ).dump`
-   (outside the repo, because it holds personal data).
+1. Back it up **on the instance**, since RDS isn't reachable from my laptop:
+   `ssh career-aws 'cd ~/career-platform && set -a && . ./.env && pg_dump --format=custom "$DATABASE_URL" -f ~/backups/career-$(date -u +%Y%m%dT%H%MZ).dump'`,
+   then `scp` it to my laptop's `~/backups/` and an independent copy (it holds personal data, so never the repo).
 2. Make the change.
-3. To undo: `pg_restore --clean --if-exists --no-owner -d "$RAILWAY_DATABASE_URL" <file>`, then
-   reload the page and check it.
+3. To undo: on the instance, `pg_restore --clean --if-exists --no-owner --no-acl --single-transaction -d "$DATABASE_URL" <file>`,
+   then reload the page and check it.
 
-Not yet done: I haven't taken or test-restored a backup of Railway's database. See
-[Limitations](#limitations).
+**Backups now.** RDS takes automated daily backups, kept **1 day** (the Free plan refused 7). My own
+`pg_dump` files outside AWS are the longer history. The Railway export from 2026-10-29 was
+restore-tested locally that day and again into RDS on 2026-11-08 (248 ms, all 14 table counts
+matched). I accept losing **up to 1 day** of changes (RPO), and **1 hour** to restore (RTO).
 
-**Hosting (the migration rollback).** Until the VM was deleted, rollback was DNS only: point the
+**Hosting (the migration rollback).** There's no rollback for the AWS move: Railway's trial had
+already ended when I cut over on 2026-11-08, so the fallback is rebuilding from Git and restoring a
+`pg_dump`, as the plan does. For the Railway move, until the VM was deleted, rollback was DNS only: point the
 root record back to A `4.155.216.147`, where the VM still had Nginx, its certificate and the same
 data. Because nothing writes to the database, no data could have been written on Railway after
 cutover that the VM would have missed. If writes are ever allowed, a rollback would first have to
@@ -259,7 +312,19 @@ configuration, my data, my DNS or my bill.
 
 ## Decisions
 
-Written 2026-10-21, after the work, from the plans and records.
+Decisions 1–3 were written 2026-10-21, after the work, from the plans and records. Decision 4 was
+made before the AWS work, on 2026-10-29.
+
+### 4. EC2 + Single-AZ RDS on AWS
+
+- **Chose:** EC2 for the app and RDS PostgreSQL for the database.
+- **Alternatives:** EC2 with PostgreSQL installed on the instance (cheaper, about $13/month, but
+  backups, patching and one shared failure point are mine); Lambda + API Gateway + RDS (no server,
+  but app changes and database-connection handling for little gain on a site this small).
+- **Why:** I want to keep learning to run a server (Nginx, Certbot, systemd, SSH), as on Azure,
+  without running the database. RDS handles patching, backups and the server.
+- **Given up:** a second service to secure and pay for (about $26.50/month in total, from Free plan
+  credits), and no auto-deploy: deploying is SSH plus `deploy.sh`.
 
 ### 1. SQLite first, then PostgreSQL on Railway
 
@@ -311,10 +376,18 @@ Written 2026-10-21, after the work, from the plans and records.
 - **Two failed Railway deployments on 2026-10-08** (`0c74dc20`, `bc840260`, both for commit
   `09e1437`, before the Postgres code was on `main`). Their logs are no longer available, so the
   cause wasn't recorded. The next deployment, `b8448c7d` for `8bea26e`, succeeded.
-- **No database backup taken or tested** on Railway.
-- **`/health` doesn't check the database.** Railway would call a deploy healthy even if Postgres
-  were down. The page itself would correctly return 503.
-- **The 503 behavior was tested locally**, not by stopping Railway's database.
+- **RDS keeps only 1 day of automated backups,** the Free plan's limit. Anything older depends on
+  my own `pg_dump` files outside AWS.
+- **The AWS account is on the Free plan.** It closes 6 months after signup, or when the credits run
+  out (about 3.8 months on $100 at $26.50/month). The site goes with it unless I upgrade or move first.
+- **One instance and one Single-AZ database** in one Availability Zone. An outage there takes the
+  site down. Multi-AZ costs about double and isn't on the Free plan.
+- **No auto-deploy and no alerting.** Deploys are manual over SSH, and nothing pages me if the site
+  goes down.
+- **Ubuntu 24.04, not the guide's 26.04.** It works, but `pg_restore` 18 comes from the PGDG
+  repository rather than Ubuntu's own packages ([migration-notes.md](migration-notes.md)).
+- **`/health` doesn't check the database.** The deploy script makes up for it by also requiring `/`
+  to return 200.
 - **No admin interface.** Content changes need a script.
 - **A duplicated résumé bullet** from the source PDF is published (ex03 Known gaps).
 - **DMARC is `p=none`** (monitor only), so spoofed mail claiming to be from my domain isn't
@@ -344,15 +417,31 @@ a plan step that overwrote my `.env`, came from reading each step before running
 
 ## Costs and cleanup
 
-Checked 2026-10-21.
+AWS row checked 2026-11-08; the other rows 2026-10-21.
+
+| AWS item (us-east-1, on-demand, from AWS's public price list, 730 hours) | Monthly |
+|---|---|
+| EC2 `t3.micro` ($0.0104/hour) | $7.59 |
+| EBS gp3 16 GB ($0.08/GB-month) | $1.28 |
+| Public IPv4 / Elastic IP ($0.005/hour, billed even when idle) | $3.65 |
+| RDS `db.t4g.micro` Single-AZ ($0.016/hour) | $11.68 |
+| RDS gp3 20 GB ($0.115/GB-month) | $2.30 |
+| RDS backups (free up to 100% of storage) and data transfer (first 100 GB out free) | $0 |
+| **Total** | **$26.50** |
+
+The account is on the AWS **Free plan**, so this comes out of credits, not a card. A monthly cost
+budget of **$1** emails me at the first charge credits don't cover. **Next:** before the credits or
+the 6 months run out, decide whether to upgrade to Paid, move to a cheaper host, or delete the site.
+Teardown, including releasing the Elastic IP, which bills while idle, is in the plan's Task 10.
 
 | Service | Plan / cost | Expires or renews | Cleanup |
 |---|---|---|---|
-| Railway (web + Postgres) | Trial: one-time $5.00 credit, 1 GB RAM, 2 vCPU, 1 GB disk. Used so far: **$0.80** (memory $0.76, CPU $0.03, volume $0.007, egress $0.0004). Memory is almost all of it: the web service and Postgres run all the time, whether or not anyone visits. | Dashboard on 2026-10-21: **"17 days or $4.20 left"**, so the trial ends about **2026-11-07**, or sooner if the credit runs out | Migrate to AWS after the midterm, before the trial ends; then delete the Railway project |
+| AWS (EC2 + RDS) | Free plan credits, about $26.50/month (table above) | Free plan ends 6 months after signup or when credits run out | Plan Task 10 teardown; release the Elastic IP |
+| Railway (web + Postgres) | **Trial ended about 2026-11-07; nothing serves traffic.** Was: trial with a one-time $5.00 credit, 1 GB RAM, 2 vCPU, 1 GB disk. Used so far: **$0.80** (memory $0.76, CPU $0.03, volume $0.007, egress $0.0004). Memory is almost all of it: the web service and Postgres run all the time, whether or not anyone visits. | Dashboard on 2026-10-21: **"17 days or $4.20 left"**, so the trial ends about **2026-11-07**, or sooner if the credit runs out | Migrate to AWS after the midterm, before the trial ends; then delete the Railway project |
 | Azure (`rg-career-platform`) | Personal subscription. **Actual cost Sep 1 – Oct 21: $6.64** (Cost Management API): VM compute $1.86 (`Standard_B2ts_v2`, list price $0.0104/hour), OS disk $1.58, static public IP $3.20 | — | VM and disk deleted, as the instructor directed. **Kept for now:** public IP `vm-career-platform-ip`, NSG and virtual network, since the directions covered only the VM. The IP still bills at the list price of $0.005/hour (about $3.60/month) and nothing uses it, so I'll ask the instructor whether to delete it |
 | Domain `dhwanijain.me` | Namecheap, privacy protection on | **Expires 2027-09-30. Auto-renew is off,** so it lapses unless I renew it by then | Decide before Sep 2027 |
 | Cloudflare DNS | Free | — | Keep |
 | Zoho Mail | Forever Free | — | Keep |
 | Google Analytics 4 | Free | — | Keep |
 | GitHub | Free | — | Keep |
-| Certificates | Free (Let's Encrypt via Railway and Cloudflare) | Root: 2027-01-06; `www`: 2027-01-04; renewed by the providers | — |
+| Certificates | Free. Let's Encrypt via Certbot on EC2 for `dhwanijain.me` and `aws.dhwanijain.me`; Cloudflare's for `www` | EC2 certificate: 2027-02-06, renewed by `certbot.timer` (dry run passed 2026-11-08); `www`: 2027-01-04, by Cloudflare | — |
