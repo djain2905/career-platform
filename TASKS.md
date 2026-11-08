@@ -8,7 +8,7 @@ From the requirements audit on 2026-10-20 against `95b51b2`. Each line names the
 - [x] Show a deliberate message when the projects table is empty instead of hiding the section — `app/templates/index.html`
 - [ ] Add a project entry, clearly labeled, describing this website as a work in progress — `scripts/seed_resume.py` plus a row in Railway Postgres
 - [x] Explain why SQLite was the first database engine — README "Decisions" section
-- [ ] Check live (done locally 2026-10-21, not on Railway): DB down gives 503 with profile visible, DB back gives 200 with projects on refresh, no restart — dated result in `docs/evidence/`
+- [x] Check live: DB down gives 503 with profile visible, DB back gives 200 with projects on refresh, no restart. Done on AWS on 2026-11-08 by revoking the RDS security-group rule. See `docs/evidence/aws-ec2-rds.md`
 
 ## 2. Azure deployment
 

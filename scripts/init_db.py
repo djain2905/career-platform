@@ -1,4 +1,4 @@
-"""Create (or re-apply) the Career Platform schema. Runs before every Railway deploy.
+"""Create (or re-apply) the Career Platform schema. Runs on every deploy (deploy/aws/deploy.sh on EC2).
 
 Usage:  python -m scripts.init_db
 """
